@@ -1,0 +1,32 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+build/
+dist/
+*.egg-info/
+
+# Heavy artifacts (regenerable via Makefile)
+data/raw/**
+data/processed/**
+data/splits/*.parquet
+models/baseline/**
+models/improved/**
+models/devign/**
+models/onnx/**
+
+# Keep label_map.json (small, needed by API), gitignore actual splits
+!data/splits/label_map.json
+
+# Reports
+bench/reports/*.html
+bench/reports/*.csv
+
+# Editor
+.DS_Store
+.idea/
+.vscode/
