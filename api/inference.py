@@ -7,9 +7,8 @@ Three knobs (set via environment, read at process start):
   NO_CACHE=1                         disables the LRU embedding/logit cache
   NO_BATCHING=1                      disables dynamic micro-batching on /predict
 
-The load test (`bench/locustfile.py`) can run the API with both knobs off as a
-plain-ORT reference and with both on as the optimized path; comparing P95
-across the two runs quantifies the optimization win.
+Running the load test against `serve` and `serve-baseline` in turn compares the
+optimized path against a plain-ORT reference on the same traffic.
 """
 from __future__ import annotations
 
@@ -36,10 +35,14 @@ def _model_dir() -> Path:
 
 
 class LRUEmbeddingCache:
-    """LRU cache of predictions keyed by xxhash(code). The model is a deterministic
-    code->logits function, so caching logits is sound. Hit rate is meaningful in
-    practice because identical snippets recur often in vulnerability scanning
-    (test fixtures, vendored libraries, generated headers)."""
+    """LRU cache of logits keyed by xxhash of the code string.
+
+    The model is a deterministic function from code to logits, so caching the
+    logits is sound. Whether the cache earns its place depends entirely on how
+    often real traffic repeats a snippet, which this project does not measure;
+    the load test drives a configurable repeat rate so the effect can be seen
+    at a rate you choose rather than assumed.
+    """
 
     def __init__(self, capacity: int = 8192):
         self.capacity = capacity
@@ -123,7 +126,7 @@ class Engine:
                     break
                 try:
                     c, f = await asyncio.wait_for(self._batch_queue.get(), timeout=timeout)
-                except asyncio.TimeoutError:
+                except TimeoutError:
                     break
                 batch_codes.append(c)
                 futs.append(f)

@@ -15,7 +15,6 @@ from api.schemas import (
     PredictResponse,
 )
 
-
 _engine: Engine | None = None
 
 
@@ -77,5 +76,5 @@ async def predict_batch(req: BatchPredictRequest) -> BatchPredictResponse:
     items = []
     for i in range(len(req.codes)):
         d = _engine.humanize(logits[i], req.return_probs)
-        items.append(PredictResponse(**d, cached=False, inference_ms=0.0))
+        items.append(PredictResponse(**d, cached=False, inference_ms=None))
     return BatchPredictResponse(predictions=items, batch_ms=latency_ms(t0))

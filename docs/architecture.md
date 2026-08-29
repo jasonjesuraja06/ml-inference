@@ -1,102 +1,155 @@
 # Architecture
 
 ```
-   datasets (DiverseVul, CodeXGLUE Devign)
-                 |
-                 v
-   build_splits.py  ->  train / val / test / 10K holdout / unlabeled pool
-                 |
-                 v
-   train_baseline.py        train_improved.py        train_devign.py
-                 |
-                 v
-   export_onnx.py  ->  quantize_onnx.py  (INT8 dynamic, AVX-512 VNNI)
-                 |
-                 v
-   bench_inference.py  (FP32 vs INT8 latency + accuracy)
-                 |
-                 v
-   api/main.py (FastAPI)
-        Engine = ORT session + LRUEmbeddingCache + dynamic micro-batching
-                 |
-                 v
-   bench/locustfile.py  (sustained load, configurable cache-repeat rate)
+   DiverseVul (HF mirror)                CodeXGLUE Devign (HF)
+            |                                     |
+            v                                     v
+   scripts/build_splits.py                 train_devign.py
+   train / val / test / holdout / pool      (binary benchmark)
+            |
+            v
+   train_baseline.py            train_improved.py
+   (CodeBERT, plain CE)         (UniXcoder, focal + class weights
+            |                    + augmentation + early stopping)
+            |                              |
+            |                              v
+            |                    export_onnx.py -> quantize_onnx.py
+            |                    (FP32 ONNX)      (INT8 dynamic)
+            |                              |
+            v                              v
+   holdout macro F1            bench_inference.py
+                               (latency + macro F1 per variant)
+                                           |
+                                           v
+                               api/main.py (FastAPI)
+                               Engine = ORT session + LRU cache + micro-batching
+                                           |
+                                           v
+                               bench/locustfile.py (load test)
 
    active_learning_loop.py
-        scores unlabeled pool -> auto_labeled / review / uncertain queues
+        scores the pool -> auto_labeled / review / uncertain queues
+        auto_labeled.parquet feeds the next train_improved.py run
 ```
 
 ## Datasets
 
-- **DiverseVul** (Wagner et al., 2023) — ~18K vulnerable C/C++ functions across 295 CWE classes. The training pipeline restricts to the top-10 most-frequent CWEs plus an "other" bucket, which makes the per-class sample counts large enough to learn meaningful per-class boundaries.
-- **CodeXGLUE Defect Detection (Devign)** (Zhou et al., 2019) — ~27K binary-labeled (vulnerable/benign) functions from FFmpeg and Qemu. Used here as a recognized comparison benchmark.
+**DiverseVul** (Chen et al., 2023) is the primary source for the multi-class
+CWE task. Two properties of the mirror drive `build_splits.py`:
 
-`scripts/build_splits.py` produces:
-- `train.parquet`, `val.parquet`, `test.parquet` — 80/10/10 split of the labeled remainder after the holdout and pool are removed.
-- `holdout_10k.parquet` — 10,000-row evaluation holdout, not touched by training.
-- `unlabeled_pool.parquet` — ~10% of the remainder, with `label = -1`; the true labels are retained in a separate `true_label` column for active-learning evaluation.
-- `label_map.json` — string-CWE-id ↔ integer-label-id mapping; included in the API container.
+- It contains 330,492 functions, of which 18,945 carry `target == 1`. The
+  dataset ships both the vulnerable and the patched version of each function
+  touched by a fixing commit, and attaches the commit's CWE to both. The CWE is
+  therefore a property of the commit, not of the function, and it is only a
+  meaningful label on the `target == 1` rows. The split builder keeps those.
+- The `cwe` field is an array, because one commit can cite several CWEs. About
+  a quarter of rows carry more than one. The builder takes the first and drops
+  the rest, so a multi-CWE function trains as a single-label example. This is a
+  real simplification and a source of irreducible error on those rows.
+
+After filtering to vulnerable rows with a parseable CWE and a function body
+longer than 20 characters, 16,101 rows remain. They are split into the top-10
+most frequent CWEs plus one `__OTHER__` bucket, which holds the long tail and
+is the largest single class.
+
+**CodeXGLUE Defect Detection (Devign)** (Zhou et al., 2019) is a binary
+vulnerable/benign benchmark over 27,318 C functions from FFmpeg and QEMU. It is
+used as an independently published second task.
+
+`scripts/build_splits.py` writes `train`, `val`, `test`, `holdout`,
+`unlabeled_pool` parquets, a `label_map.json`, and a `manifest.json` recording
+the row counts and the training label distribution.
 
 ## Training
 
-Two training scripts share a tokenizer, dataset class, and class-weight helper.
+Both trainers share the tokenizer, dataset class, and class-weight helper in
+`data.py`, and both accept the same environment overrides (`MODEL_NAME`,
+`EPOCHS`, `BATCH_SIZE`, `LEARNING_RATE`, `MAX_TRAIN_ROWS`, `MAX_EVAL_ROWS`,
+`MAX_SEQ_LEN`). Every report they write embeds a `scope` block with the values
+actually used, the device, and the wall clock, so a score is never separable
+from the run that produced it.
 
 ### Baseline (`train_baseline.py`)
 
-- Backbone: `microsoft/codebert-base`
-- 2 epochs, batch size 16, LR 5e-5, no warmup, no weight decay
-- Standard cross-entropy loss, no class weights
-- No early stopping; the final checkpoint is the last epoch
-- Final evaluation on `holdout_10k.parquet`
+`microsoft/codebert-base`, plain cross-entropy, no class weights, no warmup, no
+weight decay, no augmentation, no early stopping. It is the control arm: it
+shows what the task looks like when the class imbalance is left untreated.
 
 ### Improved (`train_improved.py`)
 
-- Backbone: `microsoft/unixcoder-base`
-- 6 epochs (with early stopping), effective batch 32 via grad accumulation
-- Class-weighted focal loss (gamma 2.0) — inverse-frequency weights from the training distribution
+`microsoft/unixcoder-base` with:
+
+- Class-weighted focal loss, gamma 2.0, with inverse-frequency weights taken
+  from the training distribution
 - Label smoothing 0.1
-- Minority-class augmentation via identifier renaming and benign line duplication (see `augment.py`); only applied to classes whose training count is below 70% of the median per-class count
-- LR warmup ratio 0.06, weight decay 0.01
-- Early stopping on validation macro F1 with patience 2
-- Final evaluation on `holdout_10k.parquet`
+- Minority-class augmentation, applied to classes whose training count is below
+  70 percent of the median per-class count
+- LR warmup 0.06, weight decay 0.01, effective batch 32 via gradient
+  accumulation
+- Early stopping on validation macro F1, patience 2
+- Auto-labeled rows from a prior active-learning run, when present
 
-### CodeXGLUE Defect Detection (`train_devign.py`)
-
-CodeBERT fine-tuned on the Devign binary-classification task. 3 epochs, LR 2e-5, warmup 0.06, weight decay 0.01. Reports accuracy and binary F1 on the official test split.
+The two differ in backbone as well as in loss, so the gap between them is the
+combined effect of every change, not an ablation of any single one.
 
 ## Quantization
 
-`export_onnx.py` uses Optimum's `ORTModelForSequenceClassification.from_pretrained(export=True)` to produce a FP32 ONNX graph. `quantize_onnx.py` then runs Optimum's `ORTQuantizer` with an AVX-512 VNNI dynamic-quantization config (`is_static=False, per_channel=True`). The output `model_quantized.onnx` is what the FastAPI service loads in production mode.
+`export_onnx.py` produces an FP32 ONNX graph through Optimum's
+`ORTModelForSequenceClassification(export=True)`. `quantize_onnx.py` applies
+dynamic INT8 quantization with `ORTQuantizer`.
+
+The quantization preset is chosen from the host architecture, because Optimum's
+presets are instruction-set specific: `avx512_vnni` targets x86-64 with VNNI
+and `arm64` targets AArch64. Selecting the wrong one produces a graph tuned for
+instructions the host does not have. `QUANT_ARCH` overrides the detection when
+quantizing for a different target. The chosen preset and the resulting file
+sizes are written to `models/onnx/improved-int8/quantization.json`.
 
 ## Serving
 
-`api/inference.py` constructs a single `Engine` on application startup, holding:
-
-- The ONNX Runtime session (`ORTModelForSequenceClassification`).
-- The tokenizer.
-- A `label_map.json`-derived inverse map for humanizing predictions.
-- An `LRUEmbeddingCache` (xxhash-keyed; configurable capacity).
-- An asyncio queue and background task implementing dynamic micro-batching.
+`api/inference.py` builds one `Engine` at application startup holding the ONNX
+Runtime session, the tokenizer, the inverse label map, an `LRUEmbeddingCache`,
+and an asyncio queue with a background batching task.
 
 `/predict` flow:
-1. Cache lookup (xxhash of code → cached logits). Cache hit returns immediately.
-2. On miss, the request waits in the batch queue. The batch loop collects requests for up to 8ms (configurable) or until the batch reaches `BATCH_MAX` (default 16), then runs a single ORT forward pass.
-3. The resulting logits are returned to each waiting future and inserted into the cache.
 
-`/predict/batch` bypasses the queue and runs a direct batched forward pass on up to 64 inputs.
+1. Cache lookup, keyed by xxhash of the code string. A hit returns immediately
+   with `cached: true`.
+2. On a miss the request is parked on the batch queue. The batch loop collects
+   requests for up to `BATCH_WINDOW_MS` (default 8) or until `BATCH_MAX`
+   (default 16) accumulate, then runs one ORT forward pass.
+3. Each waiting future receives its row of the logits, and the result is cached.
+
+Caching logits is sound because the model is a deterministic function from code
+to logits. The hit rate is only useful to the extent that real traffic repeats
+snippets; the load test models this with a configurable repeat rate rather than
+assuming it.
+
+`NO_CACHE=1` and `NO_BATCHING=1` disable each path independently, which is what
+makes `serve-baseline` a like-for-like comparison target.
+
+`/predict/batch` bypasses the queue for up to 64 inputs in one call.
 
 ## Active learning
 
-`active_learning_loop.py` loads the improved model, scores every row in `unlabeled_pool.parquet`, and partitions:
-- `confidence >= 0.92` → auto-labeled, written to `data/splits/auto_labeled.parquet` for inclusion in the next `train-improved` run.
-- `0.45 <= confidence < 0.92` → human-review queue.
-- `confidence < 0.45` → uncertain queue (high information gain; these are prioritized for manual labeling).
-
-Because the pool retains true labels, the script also reports the agreement rate of auto-labels against ground truth — a guardrail against silent quality regressions.
+`active_learning_loop.py` scores the pool with the improved model and splits it
+at two confidence thresholds into auto-labeled, human-review, and uncertain
+queues. Because `build_splits.py` retains the pool's real labels in a
+`true_label` column the loop never reads before predicting, the auto-labels can
+be scored against ground truth afterwards. That check does not exist on a real
+unlabeled pool, where the equivalent guardrail is a spot-check sample.
 
 ## Trade-offs
 
-- **Post-training dynamic INT8 vs QAT.** Dynamic quantization is cheap and recovers most of the speedup with a small accuracy hit. Quantization-aware training (QAT) would close the small accuracy gap further but at significant training cost; out of scope here.
-- **CPU inference assumption.** All latency numbers in the README assume CPU inference. GPU inference would change the relative ranking of FP32 vs INT8 (INT8 wins less on GPU because of overhead).
-- **One backbone per variant.** A more thorough study would ablate (backbone × loss × augmentation) and isolate which change contributes which fraction of the macro-F1 lift. For a reference implementation we batch them together and report the combined effect.
-- **DiverseVul label noise.** The dataset is mined from real-world CVE fixes and has some label noise. The `label_smoothing` and focal-loss settings partially compensate; a production deployment would invest in re-labeling the noisiest CWE classes.
+- **Dynamic INT8 rather than QAT.** Post-training dynamic quantization is cheap
+  and needs no calibration data. Quantization-aware training would recover more
+  accuracy at a large training cost.
+- **CPU for all inference measurements.** ONNX Runtime has no MPS execution
+  provider, so an ONNX graph cannot use the Apple GPU. Benchmarking the PyTorch
+  model on MPS against ONNX on CPU would measure the accelerator rather than
+  the quantization, so `bench_inference.py` puts every variant on CPU.
+- **Backbone and technique changed together.** The improved config differs from
+  the baseline in both, so the difference between them cannot be attributed to
+  either alone.
+- **Label noise.** DiverseVul labels come from CVE-fixing commits and carry
+  attribution noise. Label smoothing and focal loss compensate partially.

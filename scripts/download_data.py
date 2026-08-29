@@ -1,18 +1,24 @@
 #!/usr/bin/env python3
 """
-Download DiverseVul + CodeXGLUE Defect Detection.
+Download DiverseVul and CodeXGLUE Defect Detection from the Hugging Face Hub.
 
-DiverseVul: 18K+ vulnerable functions, 295 CWEs, 2023.
-  - HF Hub: claudios/DiverseVul (mirror) OR original release
-  - Fallback URL: https://drive.google.com/.../diversevul.json (manual)
+DiverseVul is fetched from the community mirror `claudios/DiverseVul`, which
+holds 330,492 rows of which 18,945 are vulnerable functions. The original
+release is distributed as a request-gated download rather than from the Hub;
+if you have that file, place it at data/raw/diversevul/diversevul.json as
+newline-delimited JSON and build_splits.py will read it instead.
 
-CodeXGLUE Defect Detection (Devign): 27K binary-labeled functions.
-  - HF Hub: code_x_glue_cc_defect_detection
+CodeXGLUE Defect Detection (Devign) is fetched from
+`google/code_x_glue_cc_defect_detection`: 21,854 train, 2,732 validation, and
+2,732 test rows of binary-labeled C functions.
+
+Total download is roughly 200 MB and expands to about 700 MB on disk.
 """
 from __future__ import annotations
 
-import sys
+import os
 import pathlib
+import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "src"))
 
@@ -25,12 +31,9 @@ def download_diversevul() -> pathlib.Path:
     try:
         from datasets import load_dataset
     except ImportError as e:
-        raise SystemExit(f"datasets not installed: {e}")
+        raise SystemExit(f"datasets not installed: {e}") from e
 
-    candidates = [
-        "claudios/DiverseVul",
-        "wagner-group/DiverseVul",
-    ]
+    candidates = [c for c in os.environ.get("DIVERSEVUL_REPOS", "claudios/DiverseVul").split(",") if c]
     last_err: Exception | None = None
     for repo in candidates:
         try:
@@ -44,9 +47,9 @@ def download_diversevul() -> pathlib.Path:
             print(f"[diversevul] failed on {repo}: {e}")
             last_err = e
     raise SystemExit(
-        f"could not download DiverseVul from any mirror; last error: {last_err}\n"
-        "Manual fallback: download diversevul.json from the paper's release page and place at "
-        f"{out / 'diversevul.json'}"
+        f"could not download DiverseVul from any of {candidates}; last error: {last_err}\n"
+        "Manual fallback: place newline-delimited JSON at "
+        f"{out / 'diversevul.json'} and run `make splits`."
     )
 
 

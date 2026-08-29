@@ -2,11 +2,12 @@
 
 Augmentations preserve label semantics:
   - rename_locals: rename non-keyword identifiers to vary surface form
-  - dup_lines: duplicate non-empty lines (some patterns are robust to this)
-  - swap_independent: swap adjacent independent assignments
+  - dup_lines: duplicate a self-contained statement line
 
-These are cheap, syntactically conservative, and inflate minority classes
-without changing CWE class.
+Both keep the function parseable: renaming skips C keywords, and duplication
+skips any line carrying a brace, a label, or a preprocessor directive, so
+block structure is unchanged. They vary surface form only, which is what makes
+them safe to apply to a CWE-labeled function without changing its class.
 """
 from __future__ import annotations
 
@@ -40,12 +41,25 @@ def rename_locals(code: str, rng: random.Random) -> str:
     return pattern.sub(lambda m: rename[m.group(1)], code)
 
 
+def _is_simple_statement(line: str) -> bool:
+    """True for a line that can be repeated without unbalancing the function.
+
+    Duplicating a line that opens or closes a block, or a preprocessor
+    directive, changes the parse. Only self-contained statements qualify.
+    """
+    s = line.strip()
+    if not s or s.startswith(("//", "#", "case", "default", "goto")):
+        return False
+    if any(ch in s for ch in "{}"):
+        return False
+    return s.endswith(";") and not s.startswith(("return", "break", "continue"))
+
+
 def dup_lines(code: str, rng: random.Random) -> str:
-    lines = code.splitlines()
     out = []
-    for ln in lines:
+    for ln in code.splitlines():
         out.append(ln)
-        if ln.strip() and not ln.strip().startswith("//") and rng.random() < 0.05:
+        if _is_simple_statement(ln) and rng.random() < 0.05:
             out.append(ln)
     return "\n".join(out)
 

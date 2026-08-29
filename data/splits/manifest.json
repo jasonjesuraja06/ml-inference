@@ -1,0 +1,20 @@
+{
+  "train": 9854,
+  "val": 1231,
+  "test": 1233,
+  "holdout": 2415,
+  "unlabeled_pool": 1368,
+  "train_label_distribution": {
+    "CWE-125": 1003,
+    "CWE-119": 866,
+    "CWE-787": 858,
+    "CWE-20": 824,
+    "CWE-416": 600,
+    "CWE-476": 586,
+    "CWE-703": 449,
+    "CWE-200": 434,
+    "CWE-190": 415,
+    "CWE-399": 283,
+    "__OTHER__": 3536
+  }
+}

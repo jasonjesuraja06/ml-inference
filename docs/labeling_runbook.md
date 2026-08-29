@@ -1,50 +1,63 @@
-# Labeling Operations
+# Labeling operations
 
-How the labeling pipeline works in this project, and how the active-learning loop reduces human labeling time relative to a fully-manual workflow.
+How the active-learning loop routes an unlabeled pool, and how to convert its
+output into a labeling-effort estimate using your own numbers.
 
-## The manual workflow
+## What the loop measures
 
-For each function entering the labeling pool, a security researcher would:
-
-1. Read the function and (if needed) its call sites.
-2. Determine whether it represents a vulnerability and, if so, which CWE class.
-3. Record the label in the labeling tool with rationale.
-4. Periodically QA a peer's labels for inter-annotator agreement.
-
-Time per function from experienced researchers on C/C++ CWE labeling: roughly **90 seconds** mean per function. The number in `active_learning_loop.py` (`SECONDS_PER_MANUAL_LABEL = 90`) reflects this estimate; if you have your own measurements, override the constant.
-
-## Pool throughput assumption
-
-For a DiverseVul-scale ingest pipeline, a reasonable steady-state input is **~3,000 new functions per week** sourced from CVE updates, repository crawls, and OSS-Fuzz triage. The hours-saved math in `active_learning_loop.py` uses this as `weekly_pool_assumption`; adjust to fit your environment.
-
-## With active learning
-
-Each iteration of `active_learning_loop.py` partitions the pool by model confidence:
+`active_learning_loop.py` scores every row of `unlabeled_pool.parquet` with the
+trained improved model and partitions it by the model's top-class confidence:
 
 | Bucket | Confidence | Human action |
 |---|---|---|
-| Auto-labeled | ≥ 0.92 | Spot-check a 5% sample; otherwise accepted as-is and added to the next training set |
-| Human-review queue | 0.45 – 0.92 | Reviewed by a labeler |
-| Uncertain queue | ≤ 0.45 | Prioritized for manual labeling (highest information gain) |
+| Auto-labeled | >= 0.92 | Accepted as-is and folded into the next training run; spot-check a sample |
+| Human review | 0.45 to 0.92 | Reviewed by a labeler |
+| Uncertain | <= 0.45 | Prioritized for manual labeling, highest information gain |
 
-At equilibrium on this dataset, roughly 75–80% of pool functions land in the auto-labeled bucket. The labeler's time concentrates on the harder ~20–25%, where their judgment is most valuable.
+Thresholds come from `AUTO_LABEL_THRESHOLD` and `LOW_CONF_THRESHOLD`, both
+overridable from the environment.
 
-## Time accounting
+The report at `bench/reports/active_learning.json` contains bucket counts,
+`needs_human_fraction`, and `auto_label_accuracy_vs_truth`. The last of these
+is a genuine check rather than an estimate: `build_splits.py` retains the pool's
+real labels in a `true_label` column that the loop never reads before
+predicting, so the auto-labels can be scored against ground truth after the
+fact. On a real deployment that column does not exist, and the equivalent
+guardrail is the spot-check sample.
 
-Approximate per-week numbers at the operating point above:
+## Converting a triage rate into hours
 
-| Path | Functions touched | Seconds each | Hours/week |
-|---|---|---|---|
-| Fully manual | 3,000 | 90 | 75.0 |
-| Active learning (review + uncertain only) | ~700 | 90 | ~17.5 |
+This project has not measured how long a human takes to CWE-label a C/C++
+function, so it does not report hours saved. The arithmetic, if you have your
+own per-function figure `t`:
 
-The raw delta is roughly 57 hours/week, but most teams have a single dedicated labeler. The reported "12 hours/week saved" reflects the practical effect on a single labeler's work week: roughly 30% of a 40-hour week recovered, freed for higher-leverage triage, dataset auditing, and adversarial sample review.
+```
+hours_fully_manual = pool_size * t / 3600
+hours_with_triage  = (human_review_queue + uncertain_queue) * t / 3600
+```
 
-`active_learning_loop.py` reports both the raw weekly delta and the auto-label agreement rate against ground truth so this calculation remains auditable.
+The ratio between them is `needs_human_fraction`, which is the part the loop
+actually measures. Two things make the hours figure much softer than the ratio:
+reviewing a model's proposed label is faster than labeling from scratch, so the
+review queue does not cost a full `t` per item, and the spot-check sample over
+the auto-labeled bucket adds back cost the formula ignores.
 
 ## Quality guardrails
 
-- **Spot-check the auto-labeled bucket.** At minimum 5% randomized sampling weekly.
-- **Track the auto-label agreement rate.** The `auto_label_accuracy_vs_truth` field in `bench/reports/active_learning.json` is the canonical metric; investigate any drop below 0.97.
-- **Rotate human reviewers across the review queue.** Avoid single-labeler bias.
-- **Re-train regularly.** The improved model is the source of truth for confidence scores; if the model drifts, the auto-label bucket quality drifts with it.
+- Spot-check the auto-labeled bucket rather than trusting it. The auto-label
+  bucket is only as good as the model that produced it.
+- Track `auto_label_accuracy_vs_truth` between runs. A drop means the model
+  drifted and the threshold needs raising.
+- Raise `AUTO_LABEL_THRESHOLD` when agreement falls; that trades a smaller
+  auto-labeled bucket for higher precision in it.
+- Retrain before each loop iteration. Confidence from a stale model routes
+  badly.
+
+## Feeding results back into training
+
+The loop writes auto-labeled rows to `data/splits/auto_labeled.parquet` with
+columns `code`, `label`, `confidence`. `train_improved.py` loads that file when
+it exists and concatenates it onto the training split before augmentation; set
+`NO_AUTO_LABELS=1` to train without it. Because the loop needs a trained model
+to score the pool, the order is: train, run the loop, then retrain to pick up
+the new rows.

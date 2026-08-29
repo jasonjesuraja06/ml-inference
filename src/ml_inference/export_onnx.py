@@ -6,7 +6,6 @@ Output: models/onnx/improved-fp32/model.onnx + tokenizer files
 from __future__ import annotations
 
 import shutil
-from pathlib import Path
 
 from optimum.onnxruntime import ORTModelForSequenceClassification
 from transformers import AutoTokenizer

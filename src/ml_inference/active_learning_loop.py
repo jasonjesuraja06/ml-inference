@@ -10,25 +10,28 @@ Mechanics:
        - confidence <= LOW_CONF                   -> "uncertain" queue (high info gain)
   4. Write the auto-labeled rows to data/splits/auto_labeled.parquet so the
      next train-improved run picks them up.
-  5. Compute labeling-time savings vs a fully-manual baseline and write a JSON
-     report.
+  5. Report the share of the pool that still needs a human, and the agreement
+     rate of the auto-labels against the pool's retained ground truth.
+
+The report deliberately stops at counts and rates. Converting a triage rate
+into hours saved needs a per-function labeling time, which this project has
+not measured; docs/labeling_runbook.md shows the conversion so a team can
+apply its own figure.
 """
 from __future__ import annotations
 
 import json
-import pathlib
 
 import numpy as np
 import pandas as pd
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from ml_inference.config import DATA_SPLITS, IMPROVED, MAX_SEQ_LEN, REPORTS_DIR, device
+from ml_inference.config import DATA_SPLITS, IMPROVED, MAX_SEQ_LEN, REPORTS_DIR, device, env_float
 from ml_inference.data import load_split
 
-AUTO_LABEL_THRESHOLD = 0.92  # confidence above which we auto-label
-LOW_CONF_THRESHOLD = 0.45    # confidence below which we mark "uncertain" (high info gain)
-SECONDS_PER_MANUAL_LABEL = 90  # measured: experienced labelers ~ 90 sec/function for CWE labeling
+AUTO_LABEL_THRESHOLD = env_float("AUTO_LABEL_THRESHOLD", 0.92)
+LOW_CONF_THRESHOLD = env_float("LOW_CONF_THRESHOLD", 0.45)
 
 
 def main() -> None:
@@ -80,31 +83,19 @@ def main() -> None:
     n_auto = int(auto_mask.sum())
     n_review = int(review_mask.sum())
     n_uncertain = int(low_mask.sum())
-    # Manual baseline: all of pool would have been hand-labeled.
-    manual_hours_full = len(pool) * SECONDS_PER_MANUAL_LABEL / 3600.0
-    # Automated path: only review + uncertain reach a human.
-    automated_hours = (n_review + n_uncertain) * SECONDS_PER_MANUAL_LABEL / 3600.0
-    saved_hours_total = manual_hours_full - automated_hours
-    # Weekly: assume the pool refreshes weekly with ~3000 functions/week (DiverseVul-scale ingest).
-    weekly_pool = 3000
-    weekly_auto = int(weekly_pool * (n_auto / len(pool)))
-    weekly_saved_hours = weekly_auto * SECONDS_PER_MANUAL_LABEL / 3600.0
+    n_pool = int(len(pool))
 
     out = {
-        "pool_size": int(len(pool)),
+        "pool_size": n_pool,
         "auto_labeled": n_auto,
         "human_review_queue": n_review,
         "uncertain_queue": n_uncertain,
+        "auto_labeled_fraction": round(n_auto / n_pool, 4) if n_pool else None,
+        "needs_human_fraction": round((n_review + n_uncertain) / n_pool, 4) if n_pool else None,
         "auto_label_accuracy_vs_truth": auto_accuracy,
         "auto_label_threshold": AUTO_LABEL_THRESHOLD,
         "low_conf_threshold": LOW_CONF_THRESHOLD,
-        "seconds_per_manual_label": SECONDS_PER_MANUAL_LABEL,
-        "if_fully_manual_total_hours": round(manual_hours_full, 2),
-        "automated_path_total_hours": round(automated_hours, 2),
-        "saved_hours_on_this_pool": round(saved_hours_total, 2),
-        "weekly_pool_assumption": weekly_pool,
-        "weekly_auto_labeled_extrapolated": weekly_auto,
-        "weekly_hours_saved": round(weekly_saved_hours, 2),
+        "model": str(src),
     }
     (REPORTS_DIR / "active_learning.json").write_text(json.dumps(out, indent=2))
     print(json.dumps(out, indent=2))

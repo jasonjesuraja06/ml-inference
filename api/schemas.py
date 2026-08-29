@@ -20,7 +20,8 @@ class PredictResponse(BaseModel):
     confidence: float
     probabilities: dict[str, float] | None = None
     cached: bool = False
-    inference_ms: float
+    # None on the batch endpoint, where only the whole-batch time is meaningful.
+    inference_ms: float | None = None
 
 
 class BatchPredictResponse(BaseModel):

@@ -7,8 +7,13 @@ exercise the LRU embedding cache (mirrors real scanner traffic where the same
 snippet often appears repeatedly in a scan).
 
 Usage:
-  make bench-api          # 50 users, 5/s ramp, 1h sustained, HTML report
-  CACHE_REPEAT_RATE=0.4 locust -f bench/locustfile.py ...
+  scripts/run_load_test.sh 50 60s optimized
+  CACHE_REPEAT_RATE=0.4 scripts/run_load_test.sh 50 60s optimized
+
+CACHE_REPEAT_RATE is the fraction of requests that replay a payload this user
+has already sent. It is a knob, not a measurement of real scanner traffic; the
+cache hit rate the service reports is only as representative as the rate set
+here.
 """
 from __future__ import annotations
 
@@ -30,7 +35,7 @@ _codes: list[str] = []
 @events.test_start.add_listener
 def _load_payloads(environment, **kwargs):
     global _codes
-    holdout_path = DATA_SPLITS / "holdout_10k.parquet"
+    holdout_path = DATA_SPLITS / "holdout.parquet"
     if not holdout_path.exists():
         # Fallback: any test split
         holdout_path = DATA_SPLITS / "test.parquet"
@@ -74,14 +79,34 @@ def _on_quit(environment, **kwargs):
     s = environment.stats.total
     reports_dir = pathlib.Path(__file__).resolve().parent / "reports"
     reports_dir.mkdir(parents=True, exist_ok=True)
+    predict = environment.stats.get("POST /predict", "POST")
     out = {
+        "scope": {
+            "users": environment.runner.user_count if environment.runner else None,
+            "cache_repeat_rate": CACHE_REPEAT_RATE,
+            "duration_seconds": round(s.last_request_timestamp - s.start_time, 1)
+            if s.last_request_timestamp else None,
+            "host": environment.host,
+            "model_variant": os.environ.get("MODEL_VARIANT", "quantized"),
+            "cache_enabled": os.environ.get("NO_CACHE") != "1",
+            "batching_enabled": os.environ.get("NO_BATCHING") != "1",
+        },
         "total_requests": s.num_requests,
         "failures": s.num_failures,
-        "p50_ms": s.get_response_time_percentile(0.5),
-        "p95_ms": s.get_response_time_percentile(0.95),
-        "p99_ms": s.get_response_time_percentile(0.99),
-        "rps": s.total_rps,
-        "extrapolated_daily_capacity": int((s.total_rps or 0) * 86400),
+        "rps": round(s.total_rps, 2),
+        "all_endpoints": {
+            "p50_ms": s.get_response_time_percentile(0.5),
+            "p95_ms": s.get_response_time_percentile(0.95),
+            "p99_ms": s.get_response_time_percentile(0.99),
+        },
+        "predict_endpoint": {
+            "requests": predict.num_requests,
+            "failures": predict.num_failures,
+            "p50_ms": predict.get_response_time_percentile(0.5),
+            "p95_ms": predict.get_response_time_percentile(0.95),
+            "p99_ms": predict.get_response_time_percentile(0.99),
+            "rps": round(predict.total_rps, 2),
+        },
     }
     import json
     (reports_dir / "api_load_summary.json").write_text(json.dumps(out, indent=2))

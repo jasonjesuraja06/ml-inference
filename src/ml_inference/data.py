@@ -2,14 +2,13 @@
 from __future__ import annotations
 
 import json
-import pathlib
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from ml_inference.config import DATA_SPLITS, MAX_SEQ_LEN
+from ml_inference.config import DATA_SPLITS, MAX_SEQ_LEN, SEED
 
 
 def load_label_map() -> dict[str, int]:
@@ -58,3 +57,27 @@ def class_weights(df: pd.DataFrame, num_labels: int) -> torch.Tensor:
     counts = np.where(counts == 0, 1.0, counts)
     w = counts.sum() / (num_labels * counts)
     return torch.tensor(w, dtype=torch.float32)
+
+
+def subsample(df: pd.DataFrame, max_rows: int) -> pd.DataFrame:
+    """Deterministically take at most `max_rows` rows. 0 or None means all rows.
+
+    Used to scope a run down to a fixed time budget. The sample is drawn with
+    the project seed so repeated runs at the same scope see the same rows.
+    """
+    if not max_rows or max_rows >= len(df):
+        return df
+    return df.sample(n=max_rows, random_state=SEED).reset_index(drop=True)
+
+
+def load_auto_labeled() -> pd.DataFrame | None:
+    """Rows auto-labeled by `active_learning_loop.py`, if that loop has run.
+
+    Returns None when the file is absent, so training works with or without a
+    prior active-learning iteration.
+    """
+    path = DATA_SPLITS / "auto_labeled.parquet"
+    if not path.exists():
+        return None
+    df = pd.read_parquet(path)
+    return df[["code", "label"]] if len(df) else None
