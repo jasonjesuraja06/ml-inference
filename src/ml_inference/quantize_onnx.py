@@ -15,6 +15,7 @@ import json
 import os
 import platform
 import shutil
+from pathlib import Path
 
 from optimum.onnxruntime import ORTQuantizer
 from optimum.onnxruntime.configuration import AutoQuantizationConfig
@@ -34,17 +35,18 @@ def quant_arch() -> str:
     return "avx512_vnni"
 
 
-def main() -> None:
-    src = ONNX_DIR / "improved-fp32"
-    if not src.exists():
-        raise SystemExit(f"missing FP32 export at {src}; run `make export-onnx` first")
-    out = ONNX_DIR / "improved-int8"
+def quantize_dir(src: str | Path, out: str | Path, arch: str | None = None) -> dict:
+    """Dynamically quantize an FP32 ONNX export to INT8 and return its metadata.
+
+    Shared by the `make quantize` path and by arch_bench.py so the INT8 graph
+    timed on a CI runner comes out of the same code as the one timed here.
+    """
+    src, out = Path(src), Path(out)
+    arch = arch or quant_arch()
     if out.exists():
         shutil.rmtree(out)
     out.mkdir(parents=True, exist_ok=True)
 
-    arch = quant_arch()
-    print(f"quantizing {src} -> {out} (INT8 dynamic, preset={arch}, host={platform.machine()})")
     q = ORTQuantizer.from_pretrained(str(src))
     qconfig = getattr(AutoQuantizationConfig, arch)(is_static=False, per_channel=True)
     q.quantize(save_dir=str(out), quantization_config=qconfig)
@@ -60,6 +62,17 @@ def main() -> None:
         "size_ratio": round(fp32_bytes / int8_bytes, 2),
     }
     (out / "quantization.json").write_text(json.dumps(meta, indent=2))
+    return meta
+
+
+def main() -> None:
+    src = ONNX_DIR / "improved-fp32"
+    if not src.exists():
+        raise SystemExit(f"missing FP32 export at {src}; run `make export-onnx` first")
+    out = ONNX_DIR / "improved-int8"
+    arch = quant_arch()
+    print(f"quantizing {src} -> {out} (INT8 dynamic, preset={arch}, host={platform.machine()})")
+    meta = quantize_dir(src, out, arch)
     print(json.dumps(meta, indent=2))
 
 

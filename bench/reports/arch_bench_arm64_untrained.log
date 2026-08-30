@@ -1,0 +1,64 @@
+Some weights of RobertaForSequenceClassification were not initialized from the model checkpoint at microsoft/unixcoder-base and are newly initialized: ['classifier.dense.bias', 'classifier.dense.weight', 'classifier.out_proj.bias', 'classifier.out_proj.weight']
+You should probably TRAIN this model on a down-stream task to be able to use it for predictions and inference.
+`torch_dtype` is deprecated! Use `dtype` instead!
+/private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/.venv/lib/python3.12/site-packages/transformers/modeling_attn_mask_utils.py:196: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+  inverted_mask = torch.tensor(1.0, dtype=dtype) - expanded_mask
+materialising microsoft/unixcoder-base with a 11-label head (untrained) -> /var/folders/2v/0761zsx175nfljln3hhh_3g80000gn/T/arch-bench-vilpgmjy/base-checkpoint
+exporting /var/folders/2v/0761zsx175nfljln3hhh_3g80000gn/T/arch-bench-vilpgmjy/base-checkpoint -> FP32 ONNX
+quantizing -> INT8 dynamic, preset=arm64
+timing 100 single inputs per variant, 4 intra-op threads
+{
+  "scope": {
+    "checkpoint": "microsoft/unixcoder-base",
+    "weights": "untrained",
+    "latency_samples_per_variant": 100,
+    "batch_size": 1,
+    "max_seq_len": 256,
+    "padding": "max_length",
+    "intra_op_threads": 4,
+    "execution_provider": "CPUExecutionProvider",
+    "onnxruntime_version": "1.29.0",
+    "python_version": "3.12.14",
+    "quant_preset": "arm64"
+  },
+  "cpu": {
+    "machine": "arm64",
+    "system": "Darwin",
+    "logical_cpus": 14,
+    "model": "Apple M4 Pro",
+    "int8_features": {
+      "FEAT_DotProd": true,
+      "FEAT_I8MM": true,
+      "FEAT_BF16": true
+    }
+  },
+  "model_bytes": {
+    "fp32": 503979814,
+    "int8": 127179866,
+    "size_ratio": 3.96
+  },
+  "onnx_fp32": {
+    "mean_ms": 35.75,
+    "p50_ms": 36.14,
+    "p95_ms": 38.52,
+    "p99_ms": 40.72,
+    "min_ms": 31.94,
+    "max_ms": 40.78,
+    "n": 100
+  },
+  "onnx_int8": {
+    "mean_ms": 35.77,
+    "p50_ms": 35.65,
+    "p95_ms": 37.97,
+    "p99_ms": 38.29,
+    "min_ms": 32.69,
+    "max_ms": 38.53,
+    "n": 100
+  },
+  "int8_speedup_vs_fp32": {
+    "p50": 1.014,
+    "p95": 1.014,
+    "p99": 1.063
+  }
+}
+wrote /private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/bench/reports/arch_latency_arm64_untrained.json

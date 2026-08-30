@@ -1,0 +1,77 @@
+# Measures dynamic INT8 against FP32 on x86-64.
+#
+# The development host is an Apple M4 Pro, where INT8 is slower than FP32. That
+# is a real result but a host-specific one: dynamic INT8 is a bet on integer
+# dot-product instructions, and which ones exist depends on the CPU. Running
+# the same probe on a GitHub Actions x86-64 runner produces the other half of
+# the comparison from a public, reproducible run rather than from a claim.
+#
+# The runner's CPU model and instruction-set flags are recorded in the report,
+# because ubuntu-latest is not one CPU: some allocations carry AVX-512 VNNI and
+# some do not, and the result only means something next to the flags it ran on.
+name: arch-bench
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/ml_inference/arch_bench.py"
+      - "src/ml_inference/export_onnx.py"
+      - "src/ml_inference/quantize_onnx.py"
+      - ".github/workflows/arch-bench.yml"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+jobs:
+  x86-int8:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Record the CPU this run landed on
+        run: |
+          mkdir -p bench/reports
+          lscpu | tee bench/reports/ci_runner_cpu.txt
+          echo
+          grep -m1 '^flags' /proc/cpuinfo | tr ' ' '\n' | grep -E 'vnni|avx512|amx' || echo "no vnni/avx512/amx flags present"
+
+      - name: Create environment
+        run: |
+          uv venv --python 3.12 .venv
+          # CPU-only torch: the default PyPI wheel drags in the CUDA runtime,
+          # which this runner has no GPU to use.
+          uv pip install --python .venv/bin/python torch --index-url https://download.pytorch.org/whl/cpu
+          uv pip install --python .venv/bin/python -e .
+
+      - name: FP32 vs INT8 latency
+        env:
+          PYTHONPATH: src:.
+          ARCH_BENCH_THREADS: "4"
+          ARCH_BENCH_SAMPLES: "100"
+        run: |
+          .venv/bin/python -m ml_inference.arch_bench 2>&1 | tee bench/reports/arch_bench_x86_64.log
+
+      - name: Summarise
+        run: |
+          {
+            echo '### x86-64 INT8 vs FP32'
+            echo
+            echo '```json'
+            cat bench/reports/arch_latency_x86_64_untrained.json
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch-latency-x86-64
+          path: |
+            bench/reports/arch_latency_x86_64_untrained.json
+            bench/reports/arch_bench_x86_64.log
+            bench/reports/ci_runner_cpu.txt
+          if-no-files-found: error
