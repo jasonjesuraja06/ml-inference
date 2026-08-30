@@ -29,16 +29,13 @@ Environment:
   ARCH_BENCH_CHECKPOINT   checkpoint to export      (default: the base model)
   ARCH_BENCH_THREADS      ORT intra-op threads      (default 4)
   ARCH_BENCH_SAMPLES      timed inputs per variant  (default 100)
-  ARCH_BENCH_TAG          report filename suffix    (default from checkpoint)
+  ARCH_BENCH_TAG          report filename stem      (default: host ISA + weights)
   QUANT_ARCH              quantization preset       (default from host ISA)
 """
 from __future__ import annotations
 
 import json
-import os
-import platform
 import statistics
-import subprocess
 import sys
 import tempfile
 import time
@@ -51,16 +48,13 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 from ml_inference.bench_inference import percentile
 from ml_inference.config import MAX_SEQ_LEN, REPORTS_DIR, TOP_K_CWES, env_int, env_str
 from ml_inference.export_onnx import export_fp32
+from ml_inference.hostinfo import cpu_details, isa_tag
 from ml_inference.quantize_onnx import quant_arch, quantize_dir
 
 # The base checkpoint of the improved config. Exported with a randomly
 # initialised classification head when no fine-tuned checkpoint is supplied:
 # same operators, same shapes, same kernels, different numbers.
 BASE_CHECKPOINT = "microsoft/unixcoder-base"
-
-# Instruction-set features that decide whether dynamic INT8 has a fast path.
-X86_FLAGS = ("avx2", "avx512f", "avx512_vnni", "avx_vnni", "amx_int8")
-ARM_FEATURES = ("FEAT_DotProd", "FEAT_I8MM", "FEAT_BF16")
 
 # One C function per shape of code the service sees. Content is irrelevant to
 # latency because every input is padded to MAX_SEQ_LEN; these exist so the
@@ -86,49 +80,6 @@ SYNTHETIC_SNIPPETS = (
     "  if (total < 0) return -1;\n"
     "  return total;\n}",
 )
-
-
-def cpu_details() -> dict:
-    """Model name and the int8-relevant instruction-set features of this CPU.
-
-    Recorded rather than assumed: GitHub Actions allocates several CPU models
-    to ubuntu-latest, and not all of them carry AVX-512 VNNI.
-    """
-    out: dict = {
-        "machine": platform.machine(),
-        "system": platform.system(),
-        "logical_cpus": os.cpu_count(),
-        "model": None,
-        "int8_features": {},
-    }
-    if platform.system() == "Linux" and Path("/proc/cpuinfo").exists():
-        text = Path("/proc/cpuinfo").read_text()
-        flags: set[str] = set()
-        for line in text.splitlines():
-            key, _, value = line.partition(":")
-            key, value = key.strip(), value.strip()
-            if key == "model name" and out["model"] is None:
-                out["model"] = value
-            elif key == "flags":
-                flags |= set(value.split())
-        out["int8_features"] = {f: (f in flags) for f in X86_FLAGS}
-    elif platform.system() == "Darwin":
-        def sysctl(name: str) -> str | None:
-            try:
-                return subprocess.run(
-                    ["sysctl", "-n", name], capture_output=True, text=True, check=True
-                ).stdout.strip()
-            except (OSError, subprocess.CalledProcessError):
-                return None
-
-        out["model"] = sysctl("machdep.cpu.brand_string")
-        if platform.machine() == "arm64":
-            out["int8_features"] = {
-                f: sysctl(f"hw.optional.arm.{f}") == "1" for f in ARM_FEATURES
-            }
-        else:
-            out["int8_features"] = {f: sysctl(f"hw.optional.{f}") == "1" for f in X86_FLAGS}
-    return out
 
 
 def session_options(threads: int) -> ort.SessionOptions:
@@ -194,7 +145,9 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="arch-bench-") as tmp:
         workdir = Path(tmp)
         checkpoint, weights = build_checkpoint(spec, workdir)
-        tag = env_str("ARCH_BENCH_TAG", weights)
+        # Named after what the CPU can do, not what it is called, so an Intel
+        # runner and an AMD runner cannot overwrite each other's report.
+        tag = env_str("ARCH_BENCH_TAG", f"{isa_tag()}_{weights}")
 
         fp32_dir = workdir / "fp32"
         int8_dir = workdir / "int8"
@@ -246,7 +199,7 @@ def main() -> None:
             "p99": round(fp32_lat["p99_ms"] / int8_lat["p99_ms"], 3),
         },
     }
-    dest = REPORTS_DIR / f"arch_latency_{platform.machine()}_{tag}.json"
+    dest = REPORTS_DIR / f"arch_latency_{tag}.json"
     dest.write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
     print(f"wrote {dest}")

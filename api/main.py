@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
-from api.inference import Engine, latency_ms
+from api.inference import Engine, latency_ms, stats_payload
 from api.schemas import (
     BatchPredictRequest,
     BatchPredictResponse,
@@ -44,13 +44,14 @@ async def healthz() -> HealthResponse:
 
 @app.get("/stats")
 async def stats() -> dict:
+    """Every knob this process was started with, plus the counters it has run up.
+
+    Read by scripts/run_load_test.sh at the end of each load-test run, so the
+    committed load reports carry the configuration they were measured under.
+    """
     if _engine is None:
         raise HTTPException(503, "engine not ready")
-    return {
-        "model_variant": _engine.model_variant,
-        "cache": _engine.cache.stats() if _engine.cache_enabled else {"enabled": False},
-        "batching_enabled": _engine.batching_enabled,
-    }
+    return stats_payload(_engine)
 
 
 @app.post("/predict", response_model=PredictResponse)

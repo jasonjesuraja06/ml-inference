@@ -149,15 +149,29 @@ def test_metrics_macro_f1_matches_sklearn():
     assert np.array(m["confusion_matrix"]).sum() == len(y_true)
 
 
-def test_quant_arch_follows_host_and_override(monkeypatch):
-    """The quantization preset must match the host ISA, not a hard-coded x86 one."""
+def test_quant_arch_follows_cpu_flags_not_architecture_name(monkeypatch):
+    """The preset must follow the CPU's actual flags, not the word "x86_64".
+
+    An AMD Zen 3 part and an Intel Cascade Lake part are both x86-64 and only
+    one of them has VNNI, so keying the preset off the architecture name
+    quantizes for instructions the host may not have.
+    """
     from ml_inference import quantize_onnx
 
     monkeypatch.delenv("QUANT_ARCH", raising=False)
     monkeypatch.setattr(quantize_onnx.platform, "machine", lambda: "arm64")
     assert quantize_onnx.quant_arch() == "arm64"
+
     monkeypatch.setattr(quantize_onnx.platform, "machine", lambda: "x86_64")
-    assert quantize_onnx.quant_arch() == "avx512_vnni"
+    for flags, expected in [
+        ({"avx2", "avx512f", "avx512_vnni"}, "avx512_vnni"),
+        ({"avx2", "avx512f"}, "avx512"),
+        ({"avx2"}, "avx2"),
+        (set(), "avx2"),  # unreadable flags fall back, never up
+    ]:
+        monkeypatch.setattr(quantize_onnx, "cpu_flags", lambda f=flags: f)
+        assert quantize_onnx.quant_arch() == expected
+
     monkeypatch.setenv("QUANT_ARCH", "arm64")
     assert quantize_onnx.quant_arch() == "arm64"
 
