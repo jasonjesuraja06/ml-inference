@@ -7,6 +7,7 @@ notebook that reproduces a run calls commands that actually exist.
 from __future__ import annotations
 
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -17,6 +18,9 @@ REPO = pathlib.Path(__file__).resolve().parents[1]
 SCRIPTS = REPO / "scripts"
 RESULTS = REPO / "results"
 NOTEBOOK = REPO / "notebooks" / "train_gpu.ipynb"
+# Subprocesses inherit the real environment; only the import path is forced, so these
+# tests behave the same on a developer machine and on a CI runner.
+SUBPROCESS_ENV = {**os.environ, "PYTHONPATH": f"{REPO / 'src'}:{REPO}"}
 
 sys.path.insert(0, str(SCRIPTS))
 
@@ -100,6 +104,47 @@ def test_confusion_matrix_render_is_square_and_labelled():
             assert str(cell) in text
 
 
+def test_collapse_progress_bars_keeps_the_last_redraw_and_real_output():
+    """A captured tqdm bar must shrink to its last state without losing any real line."""
+    import collect_result
+
+    raw = "start\n 0%|  | 0/3\r 33%|# | 1/3\r100%|###| 3/3\n{'loss': 1.5}\ndone\n"
+    out = collect_result.collapse_progress_bars(raw)
+    assert out.splitlines() == ["start", "100%|###| 3/3", "{'loss': 1.5}", "done"]
+    assert out.endswith("\n"), "the trailing newline of the original log must survive"
+    assert "0/3" not in out and "1/3" not in out
+
+
+def test_collapse_progress_bars_is_a_noop_without_carriage_returns():
+    import collect_result
+
+    raw = "line one\nline two\n"
+    assert collect_result.collapse_progress_bars(raw) == raw
+
+
+def test_frozen_stdout_log_has_no_carriage_returns(tmp_path, monkeypatch):
+    """collect_result must read the log with newline='' or the collapse silently no-ops."""
+    import collect_result
+
+    monkeypatch.setattr(collect_result, "REPO_ROOT", tmp_path)
+    report = tmp_path / "report.json"
+    report.write_text(json.dumps(FAKE_METRICS))
+    log = tmp_path / "run.log"
+    log.write_bytes(b"train=9\n 0%| | 0/2\r100%|#| 2/2\ndone\n")
+
+    monkeypatch.setattr(
+        sys, "argv",
+        ["collect_result.py", "--name", "demo", "--report", str(report),
+         "--command", "make train-baseline", "--log", str(log)],
+    )
+    collect_result.main()
+
+    frozen = (tmp_path / "results" / "demo" / "stdout.log").read_bytes()
+    assert b"\r" not in frozen
+    assert b"0/2" not in frozen, "the intermediate redraw survived; newline handling regressed"
+    assert b"100%|#| 2/2" in frozen and b"done" in frozen and b"train=9" in frozen
+
+
 def test_published_baselines_carry_a_citation_for_every_number():
     """No literature number may sit in the repo without the paper it came from."""
     payload = json.loads((RESULTS / "published_baselines.json").read_text())
@@ -121,7 +166,7 @@ def test_results_table_runs_against_whatever_is_committed():
         capture_output=True,
         text=True,
         cwd=REPO,
-        env={"PYTHONPATH": f"{REPO / 'src'}:{REPO}", "PATH": "/usr/bin:/bin"},
+        env=SUBPROCESS_ENV,
     )
     assert proc.returncode == 0, proc.stderr
     assert "Task A: top-10 CWE multiclass" in proc.stdout
@@ -183,7 +228,7 @@ class TestGpuNotebook:
             capture_output=True,
             text=True,
             check=True,
-            env={"PYTHONPATH": f"{REPO / 'src'}:{REPO}", "PATH": "/usr/bin:/bin"},
+            env=SUBPROCESS_ENV,
         ).stdout
         expected = {"--name", "--report", "--command", "--log"}
         assert expected <= used, f"notebook stopped passing {expected - used} to collect_result.py"

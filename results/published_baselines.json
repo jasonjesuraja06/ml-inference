@@ -15,11 +15,35 @@
       "arxiv": "https://arxiv.org/abs/2102.04664"
     },
     "results": [
-      {"model": "BiLSTM", "accuracy": 59.37},
-      {"model": "TextCNN", "accuracy": 60.69},
-      {"model": "RoBERTa", "accuracy": 61.05},
-      {"model": "CodeBERT", "accuracy": 62.08}
-    ]
+      {
+        "model": "BiLSTM",
+        "accuracy": 59.37
+      },
+      {
+        "model": "TextCNN",
+        "accuracy": 60.69
+      },
+      {
+        "model": "RoBERTa",
+        "accuracy": 61.05
+      },
+      {
+        "model": "CodeBERT",
+        "accuracy": 62.08
+      }
+    ],
+    "reference_recipe": {
+      "_note": "The fine-tuning command published in the CodeXGLUE repository for the CodeBERT row above. notebooks/train_gpu.ipynb section 7 runs these settings through train_devign.py.",
+      "model_name_or_path": "microsoft/codebert-base",
+      "epoch": 5,
+      "block_size": 400,
+      "train_batch_size": 32,
+      "eval_batch_size": 64,
+      "learning_rate": 2e-05,
+      "max_grad_norm": 1.0,
+      "seed": 123456,
+      "url": "https://github.com/microsoft/CodeXGLUE/tree/main/Code-Code/Defect-detection"
+    }
   },
   "devign_paper": {
     "task": "binary vulnerable/benign",
@@ -35,11 +59,31 @@
       "url": "https://proceedings.neurips.cc/paper_files/paper/2019/file/49265d2447bc3bbfe9e76306ce40a31f-Paper.pdf"
     },
     "results": [
-      {"model": "Metrics + Xgboost", "accuracy": 61.36, "f1": 63.76},
-      {"model": "3-layer BiLSTM", "accuracy": 59.40, "f1": 65.62},
-      {"model": "3-layer BiLSTM + Att", "accuracy": 69.57, "f1": 68.65},
-      {"model": "CNN", "accuracy": 63.36, "f1": 60.13},
-      {"model": "Devign (Composite)", "accuracy": 72.26, "f1": 73.26}
+      {
+        "model": "Metrics + Xgboost",
+        "accuracy": 61.36,
+        "f1": 63.76
+      },
+      {
+        "model": "3-layer BiLSTM",
+        "accuracy": 59.4,
+        "f1": 65.62
+      },
+      {
+        "model": "3-layer BiLSTM + Att",
+        "accuracy": 69.57,
+        "f1": 68.65
+      },
+      {
+        "model": "CNN",
+        "accuracy": 63.36,
+        "f1": 60.13
+      },
+      {
+        "model": "Devign (Composite)",
+        "accuracy": 72.26,
+        "f1": 73.26
+      }
     ]
   },
   "diversevul_paper": {
@@ -57,9 +101,23 @@
       "arxiv": "https://arxiv.org/abs/2304.00409"
     },
     "results": [
-      {"model": "best model over all 11 architectures", "f1": 47.2, "note": "43.3% true positive rate at 3.5% false positive rate, quoted in the abstract"},
-      {"model": "CodeBERT, no class weighting", "f1": 37.85, "accuracy": 90.48, "note": "Table 6, train and test on random samples"},
-      {"model": "CodeBERT, class weights on cross-entropy", "f1": 41.72, "accuracy": 89.39, "note": "Table 6, train and test on random samples"}
+      {
+        "model": "best model over all 11 architectures",
+        "f1": 47.2,
+        "note": "43.3% true positive rate at 3.5% false positive rate, quoted in the abstract"
+      },
+      {
+        "model": "CodeBERT, no class weighting",
+        "f1": 37.85,
+        "accuracy": 90.48,
+        "note": "Table 6, train and test on random samples"
+      },
+      {
+        "model": "CodeBERT, class weights on cross-entropy",
+        "f1": 41.72,
+        "accuracy": 89.39,
+        "note": "Table 6, train and test on random samples"
+      }
     ]
   },
   "backbones": [
