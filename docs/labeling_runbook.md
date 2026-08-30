@@ -1,7 +1,7 @@
 # Labeling operations
 
 How the active-learning loop routes an unlabeled pool, and how to convert its
-output into a labeling-effort estimate using your own numbers.
+output into a labeling-effort estimate from a local per-function figure.
 
 ## What the loop measures
 
@@ -28,8 +28,8 @@ guardrail is the spot-check sample.
 ## Converting a triage rate into hours
 
 This project has not measured how long a human takes to CWE-label a C/C++
-function, so it does not report hours saved. The arithmetic, if you have your
-own per-function figure `t`:
+function, so it does not report hours saved. The arithmetic, given a
+per-function figure `t`:
 
 ```
 hours_fully_manual = pool_size * t / 3600

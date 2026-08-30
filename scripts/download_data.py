@@ -4,9 +4,9 @@ Download DiverseVul and CodeXGLUE Defect Detection from the Hugging Face Hub.
 
 DiverseVul is fetched from the community mirror `claudios/DiverseVul`, which
 holds 330,492 rows of which 18,945 are vulnerable functions. The original
-release is distributed as a request-gated download rather than from the Hub;
-if you have that file, place it at data/raw/diversevul/diversevul.json as
-newline-delimited JSON and build_splits.py will read it instead.
+release is distributed as a request-gated download rather than from the Hub.
+Placing that file at data/raw/diversevul/diversevul.json as newline-delimited
+JSON makes build_splits.py read it instead.
 
 CodeXGLUE Defect Detection (Devign) is fetched from
 `google/code_x_glue_cc_defect_detection`: 21,854 train, 2,732 validation, and
