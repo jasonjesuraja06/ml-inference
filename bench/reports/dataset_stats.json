@@ -1,0 +1,15 @@
+{
+  "source": "DiverseVul mirror as downloaded by scripts/download_data.py",
+  "rows_total": 330492,
+  "rows_target_1_vulnerable": 18945,
+  "vulnerable_rows_with_a_cwe": 16109,
+  "vulnerable_rows_citing_more_than_one_cwe": 4215,
+  "pct_labeled_rows_multi_cwe": 26.2,
+  "rows_kept_in_splits": 16101,
+  "request_cap_before_fix_chars": 20000,
+  "pct_all_rows_over_cap": 0.46,
+  "pct_vulnerable_rows_over_cap": 2.48,
+  "pct_split_rows_over_cap": 2.53,
+  "split_rows_p99_chars": 35177,
+  "split_rows_max_chars": 482198
+}

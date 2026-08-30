@@ -10,7 +10,8 @@
 #
 # "optimized" serves the INT8 model with the LRU cache and dynamic batching on.
 # "baseline" serves FP32 with both disabled, which is the comparison target.
-# Results go to bench/reports/api_load_summary_<variant>.json.
+# Results go to bench/reports/api_load_summary_<variant>.json and the served
+# cache counters to bench/reports/api_stats_<variant>.json.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -45,5 +46,5 @@ API_URL="http://127.0.0.1:$PORT" .venv/bin/locust -f bench/locustfile.py --headl
   -u "$USERS" -r 10 -t "$DURATION" \
   --html "bench/reports/api-load-$VARIANT.html"
 
-curl -s "http://127.0.0.1:$PORT/stats"
+curl -s "http://127.0.0.1:$PORT/stats" | tee "bench/reports/api_stats_$VARIANT.json"
 echo

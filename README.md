@@ -30,20 +30,20 @@ DiverseVul --> build_splits.py --> train / val / test / holdout / pool
 CodeXGLUE Devign --> train_devign.py   independent binary benchmark
 ```
 
-`docs/architecture.md` covers the components.
-
 ## Measured results
 
 All numbers below were produced on an **Apple M4 Pro, 14 cores, 48 GB RAM, macOS arm64, no CUDA GPU**, at the reduced scope printed beside each. Every run writes a JSON report to `bench/reports/` carrying its own `scope` block, and those reports are committed. Training used MPS; all inference measurements are CPU-only, because ONNX Runtime has no MPS execution provider and timing an MPS PyTorch model against a CPU ONNX graph would measure the accelerator instead of the quantization.
 
-**Classifier quality.** Top-10 CWE classes plus `__OTHER__`, 4,000 training rows, 2 epochs, 256 tokens, evaluated on the full 2,415-row holdout. This is a small-scope run, not a converged one.
+**Classifier quality.** Top-10 CWE classes plus `__OTHER__`, 4,000 sampled training rows, 2 epochs, 256 tokens, evaluated on the full 2,415-row holdout. This is a small-scope run, not a converged one.
 
 | Config | Macro F1 | Accuracy | Macro recall | Train wall clock |
 |---|---|---|---|---|
 | `codebert-base`, plain cross-entropy | 0.160 | 0.438 | 0.176 | 391 s |
 | `unixcoder-base`, focal + class weights + augmentation | 0.239 | 0.260 | 0.283 | 357 s |
 
-The second config trades accuracy for macro F1, which is what class weighting is supposed to do: it stops the model from collapsing onto `__OTHER__`, the largest class, and raises macro recall from 0.176 to 0.283. Reporting only macro F1 would hide that the accuracy went down.
+The second config trades accuracy for macro F1: it stops the model from collapsing onto `__OTHER__`, the largest class, and raises macro recall from 0.176 to 0.283. Reporting only macro F1 would hide that the accuracy went down.
+
+The two rows differ in more than the loss function, and the difference cannot be attributed to class weighting alone. The `scope` block in each report records what actually changed: base model (`codebert-base` against `unixcoder-base`), learning rate (5e-5 against 2e-5), gradient accumulation (1 step against 2), and training rows after minority-class augmentation (4,000 against 4,284). Isolating one factor needs an ablation this repository does not contain.
 
 ```
 MAX_TRAIN_ROWS=4000 EPOCHS=2 make train-baseline train-improved
@@ -67,10 +67,10 @@ make export-onnx && make quantize && make bench-inference
 
 | Service config | Requests/s | P50 | P95 | P99 | Failures |
 |---|---|---|---|---|---|
-| INT8 + LRU cache + micro-batching | 108.4 | 70 ms | 550 ms | 730 ms | 0 / 6477 |
+| INT8 + LRU cache + micro-batching | 108.9 | 64 ms | 570 ms | 740 ms | 0 / 6505 |
 | FP32, no cache, no batching | 44.2 | 790 ms | 1000 ms | 1200 ms | 0 / 2625 |
 
-2.5x throughput and an 11x lower median. The cache did most of the work, reaching a 66% hit rate at a 30% repeat rate; that hit rate is a property of the synthetic traffic, not a claim about real scanners. Raising the request-size cap also mattered: at the original 20,000-character limit, 2.4% of real DiverseVul functions were rejected with a 422.
+2.5x throughput and a 12x lower median. The cache did most of the work: the served process reported a 66.1% hit rate at a 30% repeat rate (`bench/reports/api_stats_optimized.json`, written by the same run). That hit rate is a property of the synthetic traffic, not a claim about real scanners. The two rows come from separate 60 s runs against separate processes, so the ratio between them carries the run-to-run variance of both. Raising the request-size cap also mattered: at the original 20,000-character limit, 2.5% of the CWE-labeled DiverseVul functions in these splits were rejected with a 422 (`scripts/dataset_stats.py`).
 
 ```
 scripts/run_load_test.sh 50 60s optimized && PORT=8001 scripts/run_load_test.sh 50 60s baseline
@@ -78,7 +78,7 @@ scripts/run_load_test.sh 50 60s optimized && PORT=8001 scripts/run_load_test.sh 
 
 **CodeXGLUE Devign** (`MAX_TRAIN_ROWS=2000 MAX_EVAL_ROWS=1000 EPOCHS=1 make train-devign`). Binary vulnerable/benign, 2,000 of 21,854 training rows, 1 epoch, 1,000 test rows: accuracy 0.533, binary F1 0.516. Well short of the roughly 0.62 to 0.65 published full fine-tunes reach, which is what one epoch on 9% of the data buys.
 
-**Active learning** (`make active-learn`). Over the 1,368-row pool the improved model cleared the 0.92 auto-label threshold on 0 rows: 58 went to review, 1,310 to the uncertain queue. At this training scope the loop saves no labeling effort at all. The routing works; it is worth something only once the model is confident enough to auto-label, which this run is not.
+**Dataset** (`.venv/bin/python scripts/dataset_stats.py`, written to `bench/reports/dataset_stats.json`). The mirror holds 330,492 rows, of which 18,945 are `target == 1` and 16,109 of those carry a CWE; 26.2% of the labeled rows cite more than one. The splits keep 16,101 rows. **Active learning** (`make active-learn`). Over the 1,368-row pool the improved model cleared the 0.92 auto-label threshold on 0 rows: 58 went to review, 1,310 to the uncertain queue. At this training scope the loop saves no labeling effort at all. The routing works; it is worth something only once the model is confident enough to auto-label, which this run is not.
 
 ## Quickstart
 
@@ -107,10 +107,10 @@ Any training or benchmark run can be scoped down with `MODEL_NAME`, `EPOCHS`, `B
 ## Limitations
 
 - Every accuracy figure comes from a short run on a subset. No model here is trained to convergence and the absolute scores are low.
-- DiverseVul attaches a fixing commit's CWE to both the vulnerable and the patched function, so `build_splits.py` keeps only `target == 1` rows, leaving 16,101 of 330,492. Those still carry the attribution noise of the original mining, and the quarter of rows citing several CWEs keep only the first.
+- DiverseVul attaches a fixing commit's CWE to both the vulnerable and the patched function, so `build_splits.py` keeps only `target == 1` rows, leaving 16,101 of 330,492. Those still carry the attribution noise of the original mining, and the 26.2% of labeled rows citing several CWEs keep only the first.
 - Only the top-10 CWEs are distinct classes. `__OTHER__` absorbs the long tail and is the largest class in the split.
 - Latency is single-host, batch size 1, warm process, no network. The load test runs one uvicorn worker on the same machine as the client, and the per-process LRU cache means `/stats` reports one worker's view.
-- No authentication, rate limiting, or drift monitoring on any endpoint. Full list in `docs/limitations.md`.
+- No authentication, rate limiting, or drift monitoring on any endpoint. Full list in `docs/limitations.md`; `docs/architecture.md` covers the components.
 
 ## License
 
