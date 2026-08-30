@@ -27,7 +27,15 @@ import pandas as pd
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
-from ml_inference.config import DATA_SPLITS, IMPROVED, MAX_SEQ_LEN, REPORTS_DIR, device, env_float
+from ml_inference.config import (
+    DATA_SPLITS,
+    IMPROVED,
+    MAX_SEQ_LEN,
+    REPO_ROOT,
+    REPORTS_DIR,
+    device,
+    env_float,
+)
 from ml_inference.data import load_split
 
 AUTO_LABEL_THRESHOLD = env_float("AUTO_LABEL_THRESHOLD", 0.92)
@@ -95,7 +103,9 @@ def main() -> None:
         "auto_label_accuracy_vs_truth": auto_accuracy,
         "auto_label_threshold": AUTO_LABEL_THRESHOLD,
         "low_conf_threshold": LOW_CONF_THRESHOLD,
-        "model": str(src),
+        # Relative to the repo: an absolute path from whichever machine ran this is
+        # noise in a committed report and leaks that machine's directory layout.
+        "model": str(src.relative_to(REPO_ROOT)),
     }
     (REPORTS_DIR / "active_learning.json").write_text(json.dumps(out, indent=2))
     print(json.dumps(out, indent=2))

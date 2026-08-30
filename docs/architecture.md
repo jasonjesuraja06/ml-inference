@@ -69,6 +69,16 @@ Both trainers share the tokenizer, dataset class, and class-weight helper in
 actually used, the device, and the wall clock, so a score is never separable
 from the run that produced it.
 
+Those reports land in `bench/reports/`, one file per script, which the next run
+at a different scope overwrites. `scripts/collect_result.py` freezes a run into
+`results/<name>/` before that happens, with the metrics JSON, the command, a
+per-class table, a confusion matrix, and the stdout. `scripts/results_table.py`
+renders what is in `results/` next to the published numbers transcribed in
+`results/published_baselines.json` and computes nothing itself, so the README,
+`docs/benchmarks.md`, and the committed artifacts cannot disagree.
+`notebooks/train_gpu.ipynb` runs the same scripts unchanged on a Colab T4 for
+anyone without a local GPU.
+
 ### Baseline (`train_baseline.py`)
 
 `microsoft/codebert-base`, plain cross-entropy, no class weights, no warmup, no
