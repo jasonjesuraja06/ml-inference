@@ -1,0 +1,56 @@
+{
+  "scope": {
+    "checkpoint": "microsoft/unixcoder-base",
+    "weights": "untrained",
+    "latency_samples_per_variant": 100,
+    "batch_size": 1,
+    "max_seq_len": 256,
+    "padding": "max_length",
+    "intra_op_threads": 4,
+    "execution_provider": "CPUExecutionProvider",
+    "onnxruntime_version": "1.29.0",
+    "python_version": "3.12.3",
+    "quant_preset": "avx512_vnni"
+  },
+  "cpu": {
+    "machine": "x86_64",
+    "system": "Linux",
+    "logical_cpus": 4,
+    "model": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "int8_features": {
+      "amx_int8": false,
+      "avx512_vnni": true,
+      "avx_vnni": false,
+      "avx512f": true,
+      "avx2": true
+    }
+  },
+  "model_bytes": {
+    "fp32": 503979814,
+    "int8": 127179866,
+    "size_ratio": 3.96
+  },
+  "onnx_fp32": {
+    "mean_ms": 208.67,
+    "p50_ms": 208.16,
+    "p95_ms": 213.69,
+    "p99_ms": 230.13,
+    "min_ms": 196.52,
+    "max_ms": 257.11,
+    "n": 100
+  },
+  "onnx_int8": {
+    "mean_ms": 100.29,
+    "p50_ms": 99.73,
+    "p95_ms": 105.92,
+    "p99_ms": 110.53,
+    "min_ms": 95.27,
+    "max_ms": 120.93,
+    "n": 100
+  },
+  "int8_speedup_vs_fp32": {
+    "p50": 2.087,
+    "p95": 2.017,
+    "p99": 2.082
+  }
+}

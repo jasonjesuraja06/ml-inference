@@ -98,12 +98,53 @@ combined effect of every change, not an ablation of any single one.
 `ORTModelForSequenceClassification(export=True)`. `quantize_onnx.py` applies
 dynamic INT8 quantization with `ORTQuantizer`.
 
-The quantization preset is chosen from the host architecture, because Optimum's
-presets are instruction-set specific: `avx512_vnni` targets x86-64 with VNNI
-and `arm64` targets AArch64. Selecting the wrong one produces a graph tuned for
-instructions the host does not have. `QUANT_ARCH` overrides the detection when
-quantizing for a different target. The chosen preset and the resulting file
-sizes are written to `models/onnx/improved-int8/quantization.json`.
+The quantization preset is chosen from the CPU's instruction-set flags, not
+from its architecture name, because Optimum's presets are feature-specific and
+"x86-64" is not one instruction set. `avx512_vnni` needs the VNNI extension,
+which an Intel Cascade Lake part has and an AMD Zen 3 part does not; `avx512`
+and `avx2` are the fallbacks below it, and `arm64` targets AArch64.
+`hostinfo.py` reads the flags the OS reports, and `quant_arch()` picks the best
+preset those flags support. When no flags are readable it falls back to `avx2`
+rather than up to `avx512_vnni`: guessing upward produces a graph quantized for
+a machine that is not this one, and does it silently. `QUANT_ARCH` overrides
+the detection when quantizing for a different target. The preset actually used
+and the resulting file sizes are written to
+`models/onnx/improved-int8/quantization.json`.
+
+### Measuring quantization on more than one architecture
+
+Whether dynamic INT8 is faster than FP32 is not a property of the model. It is
+a property of the CPU running it and of the kernels ONNX Runtime ships for that
+CPU, and this project's development host answers it one way while an x86-64
+machine answers it another. One host cannot settle the question.
+
+`bench_inference.py` cannot be moved to a second host: it needs the fine-tuned
+checkpoint and the holdout split, and neither is in the repository.
+`arch_bench.py` is the part that can. It exports and quantizes the same
+architecture from the public base checkpoint, times FP32 against INT8 on
+synthetic inputs, and needs no dataset, so the identical module runs on a
+GitHub Actions runner. `.github/workflows/arch-bench.yml` runs it there and
+uploads the report.
+
+Two design choices make the two hosts comparable:
+
+- **Intra-op threads are pinned** (`ARCH_BENCH_THREADS`, default 4). A 14-core
+  laptop against a 4-vCPU runner would otherwise mix the effect of the
+  instruction set with the effect of having three times the cores. Even pinned,
+  absolute latency across the two hosts is not comparable: one is a dedicated
+  performance core and the other a share of a virtualised server. The
+  comparable quantity is the INT8-against-FP32 ratio within each host.
+- **Every input is padded to `MAX_SEQ_LEN`**, so each forward pass runs the
+  same operators over the same shapes whatever the weights hold. That is why an
+  untrained classification head is sound for a latency measurement and useless
+  for an accuracy one, and `arch_bench.py` reports latency only. The claim is
+  checked rather than asserted: the same probe is run locally against the
+  fine-tuned checkpoint as well, and both arm64 reports are committed.
+
+The report is named after what the CPU can do rather than what it is called
+(`arch_latency_x86-avx2_untrained.json`, `arch_latency_arm64-i8mm_trained.json`),
+because a run that lands on an AMD part and a run that lands on an Intel part
+are two measurements, not one.
 
 ## Serving
 

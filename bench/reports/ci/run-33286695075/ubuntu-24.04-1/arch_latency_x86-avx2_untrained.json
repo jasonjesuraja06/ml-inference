@@ -1,0 +1,56 @@
+{
+  "scope": {
+    "checkpoint": "microsoft/unixcoder-base",
+    "weights": "untrained",
+    "latency_samples_per_variant": 100,
+    "batch_size": 1,
+    "max_seq_len": 256,
+    "padding": "max_length",
+    "intra_op_threads": 4,
+    "execution_provider": "CPUExecutionProvider",
+    "onnxruntime_version": "1.29.0",
+    "python_version": "3.12.3",
+    "quant_preset": "avx2"
+  },
+  "cpu": {
+    "machine": "x86_64",
+    "system": "Linux",
+    "logical_cpus": 4,
+    "model": "AMD EPYC 9V74 80-Core Processor",
+    "int8_features": {
+      "amx_int8": false,
+      "avx512_vnni": false,
+      "avx_vnni": false,
+      "avx512f": false,
+      "avx2": true
+    }
+  },
+  "model_bytes": {
+    "fp32": 503979814,
+    "int8": 127263592,
+    "size_ratio": 3.96
+  },
+  "onnx_fp32": {
+    "mean_ms": 293.17,
+    "p50_ms": 292.25,
+    "p95_ms": 297.91,
+    "p99_ms": 320.04,
+    "min_ms": 289.18,
+    "max_ms": 321.06,
+    "n": 100
+  },
+  "onnx_int8": {
+    "mean_ms": 206.73,
+    "p50_ms": 206.02,
+    "p95_ms": 210.21,
+    "p99_ms": 213.77,
+    "min_ms": 205.38,
+    "max_ms": 225.6,
+    "n": 100
+  },
+  "int8_speedup_vs_fp32": {
+    "p50": 1.419,
+    "p95": 1.417,
+    "p99": 1.497
+  }
+}

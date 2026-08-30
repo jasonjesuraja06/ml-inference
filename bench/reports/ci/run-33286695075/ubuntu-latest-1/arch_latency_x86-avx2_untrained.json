@@ -1,0 +1,56 @@
+{
+  "scope": {
+    "checkpoint": "microsoft/unixcoder-base",
+    "weights": "untrained",
+    "latency_samples_per_variant": 100,
+    "batch_size": 1,
+    "max_seq_len": 256,
+    "padding": "max_length",
+    "intra_op_threads": 4,
+    "execution_provider": "CPUExecutionProvider",
+    "onnxruntime_version": "1.29.0",
+    "python_version": "3.12.3",
+    "quant_preset": "avx2"
+  },
+  "cpu": {
+    "machine": "x86_64",
+    "system": "Linux",
+    "logical_cpus": 4,
+    "model": "AMD EPYC 7763 64-Core Processor",
+    "int8_features": {
+      "amx_int8": false,
+      "avx512_vnni": false,
+      "avx_vnni": false,
+      "avx512f": false,
+      "avx2": true
+    }
+  },
+  "model_bytes": {
+    "fp32": 503979814,
+    "int8": 127263592,
+    "size_ratio": 3.96
+  },
+  "onnx_fp32": {
+    "mean_ms": 270.05,
+    "p50_ms": 269.19,
+    "p95_ms": 274.13,
+    "p99_ms": 286.68,
+    "min_ms": 267.5,
+    "max_ms": 289.0,
+    "n": 100
+  },
+  "onnx_int8": {
+    "mean_ms": 192.12,
+    "p50_ms": 190.84,
+    "p95_ms": 195.2,
+    "p99_ms": 197.27,
+    "min_ms": 190.09,
+    "max_ms": 272.19,
+    "n": 100
+  },
+  "int8_speedup_vs_fp32": {
+    "p50": 1.411,
+    "p95": 1.404,
+    "p99": 1.453
+  }
+}
