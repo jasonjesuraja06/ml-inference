@@ -2,8 +2,10 @@
 
 The claim this repository makes is that every number in a document came from a
 committed artifact. That claim is only worth anything if something checks it.
-These tests re-derive the README's result tables from `results/<run>/metrics.json`
-and fail when the two disagree, so a stale table cannot survive a retrain.
+These tests re-derive the published result tables from `results/<run>/metrics.json`
+and fail when the two disagree, so a stale table cannot survive a retrain. The
+README carries the headline tables and `docs/benchmarks.md` carries the
+per-class breakdown; each is checked against the same frozen runs.
 
 They skip when a run is missing, because a fresh clone has no `results/` until
 someone trains. They do not skip when a run is present and its number is wrong.
@@ -18,6 +20,7 @@ import pytest
 
 REPO = pathlib.Path(__file__).resolve().parents[1]
 README = REPO / "README.md"
+BENCHMARKS = REPO / "docs" / "benchmarks.md"
 RESULTS = REPO / "results"
 AGGREGATE_ROWS = {"accuracy", "macro avg", "weighted avg", "micro avg", "samples avg"}
 
@@ -58,6 +61,12 @@ def readme_rows() -> list[list[str]]:
     return table_rows(README.read_text())
 
 
+@pytest.fixture(scope="module")
+def per_class_rows() -> list[list[str]]:
+    """Per-class tables live in docs/benchmarks.md; the README links to them."""
+    return table_rows(BENCHMARKS.read_text())
+
+
 @pytest.mark.parametrize(("label", "run"), CONFIG_ROWS.items())
 def test_task_a_config_row_matches_its_frozen_run(readme_rows, label, run):
     """Macro F1, weighted F1, accuracy, and macro recall must match results/<run>/."""
@@ -76,8 +85,8 @@ def test_task_a_config_row_matches_its_frozen_run(readme_rows, label, run):
         )
 
 
-def test_task_a_per_class_rows_match_the_frozen_runs(readme_rows):
-    """Every per-class F1 in the README must equal the frozen per-class report."""
+def test_task_a_per_class_rows_match_the_frozen_runs(per_class_rows):
+    """Every per-class F1 in docs/benchmarks.md must equal the frozen report."""
     runs = {name: load(name) for name in PER_CLASS_COLUMNS}
     if any(m is None for m in runs.values()):
         pytest.skip("not every run is present; train them first")
@@ -86,24 +95,25 @@ def test_task_a_per_class_rows_match_the_frozen_runs(readme_rows):
     assert classes, "the improved run reported no per-class scores"
 
     checked = 0
-    for cells in readme_rows:
+    for cells in per_class_rows:
         if cells[0] not in classes:
             continue
         name = cells[0]
         support = int(cells[1])
         assert support == int(reference[name]["support"]), (
-            f"{name}: README support {support} != frozen {int(reference[name]['support'])}"
+            f"{name}: benchmarks.md support {support} != frozen "
+            f"{int(reference[name]['support'])}"
         )
         for offset, run in enumerate(PER_CLASS_COLUMNS, start=2):
             got = numbers(cells[offset])
             assert got, f"{name}: no number in column {offset}"
             expected = runs[run]["per_class"][name]["f1-score"]
             assert got[0] == pytest.approx(expected, abs=5e-5), (
-                f"{name}: README shows {got[0]} for {run}, frozen run says {expected}"
+                f"{name}: benchmarks.md shows {got[0]} for {run}, frozen says {expected}"
             )
         checked += 1
     assert checked == len(classes), (
-        f"README lists {checked} of the {len(classes)} classes; a class table went stale"
+        f"benchmarks.md lists {checked} of {len(classes)} classes; a class table went stale"
     )
 
 
