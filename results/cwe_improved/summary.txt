@@ -1,0 +1,24 @@
+command: EPOCHS=3 NO_AUTO_LABELS=1 make train-improved
+
+auto_labeled_rows_folded_in: 0
+batch_size: 16
+config_name: unixcoder-improved
+device: mps
+epochs: 3
+eval_rows: 2415
+grad_accum_steps: 2
+host: Darwin arm64
+learning_rate: 2e-05
+max_seq_len: 256
+model_name: microsoft/unixcoder-base
+seed: 1729
+train_rows: 10552
+
+accuracy: 0.4186335403726708
+f1_macro: 0.4048464977707699
+f1_weighted: 0.4285329852175431
+precision_macro: 0.39555552741921624
+recall_macro: 0.4580735302371888
+best_val_f1_macro: 0.4019
+val_f1_macro_per_epoch: [0.3036, 0.3809, 0.4019]
+train_wall_clock_seconds: 1606.1
