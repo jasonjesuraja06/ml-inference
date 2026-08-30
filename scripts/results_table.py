@@ -89,7 +89,16 @@ def per_class_table(majority: dict | None, baseline: dict | None, improved: dict
     return "\n".join(lines)
 
 
-def devign_table(measured: dict | None, published: dict) -> str:
+def devign_row(m: dict, label_suffix: str, path: str) -> str:
+    s = m["scope"]
+    return (
+        f"| **this repository, {s['model_name'].split('/')[-1]}, {s['epochs']} epochs, "
+        f"{s['max_seq_len']} tokens, batch {s['batch_size']}{label_suffix}** | "
+        f"**{m['accuracy']:.4f}** | **{m['f1_binary']:.4f}** | `{path}` |"
+    )
+
+
+def devign_table(measured: dict | None, reference: dict | None, published: dict) -> str:
     block = published["codexglue_defect_detection"]
     lines = [
         "| System | Accuracy | Binary F1 | Source |",
@@ -100,11 +109,15 @@ def devign_table(measured: dict | None, published: dict) -> str:
     if measured is None:
         lines.append("| this repository | not run | not run | |")
     else:
-        s = measured["scope"]
+        lines.append(devign_row(measured, "", "results/devign_codebert/"))
+    if reference is not None:
+        # Only present after notebooks/train_gpu.ipynb section 7 has been run on a GPU.
         lines.append(
-            f"| **this repository, {s['model_name'].split('/')[-1]}, {s['epochs']} epochs, "
-            f"{s['max_seq_len']} tokens** | **{measured['accuracy']:.4f}** | "
-            f"**{measured['f1_binary']:.4f}** | `results/devign_codebert/metrics.json` |"
+            devign_row(
+                reference,
+                ", CodeXGLUE reference recipe",
+                "results/devign_codebert_reference_recipe/",
+            )
         )
     return "\n".join(lines)
 
@@ -119,6 +132,7 @@ def main() -> None:
     baseline = load(rd, "cwe_baseline")
     improved = load(rd, "cwe_improved")
     devign = load(rd, "devign_codebert")
+    devign_ref = load(rd, "devign_codebert_reference_recipe")
     published = json.loads((rd / "published_baselines.json").read_text())
 
     print("## Task A: top-10 CWE multiclass on DiverseVul (11 classes with __OTHER__)")
@@ -131,7 +145,7 @@ def main() -> None:
     print()
     print("## Task B: binary vulnerable/benign on CodeXGLUE Defect Detection (Devign)")
     print()
-    print(devign_table(devign, published))
+    print(devign_table(devign, devign_ref, published))
     print()
     dv = published["diversevul_paper"]
     print("## Published context")
