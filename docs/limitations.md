@@ -10,6 +10,12 @@ The reduced scope is the main caveat on the accuracy numbers: they say what
 these configurations reach after a short run on a subset, not what they would
 reach if trained to convergence on the full split.
 
+Latency percentiles on this host carry more run-to-run variance than the
+effects being measured: two runs of `make bench-inference` disagree on
+whether INT8 is faster than FP32 at all. That is why the cross-architecture
+table pins the thread count and reports medians over repeats, and why no
+single-run latency difference under about 15% should be read as an effect.
+
 The latency numbers are less scope-sensitive, but they are batch size 1,
 CPU-only, and measured with a warm process. They do not include network time,
 and they are not a claim about throughput under concurrency; the load test
@@ -25,8 +31,8 @@ and it carries its own limits:
   performance core and a share of a virtualised CI server differ in clock,
   memory bandwidth, and what else is resident. Only the INT8-against-FP32 ratio
   within a row is a like-for-like comparison.
-- **One allocation of a CPU model is one sample.** Only the EPYC 7763 row is a
-  median of more than one run. The Intel rows are single runs, so their third
+- **One allocation of a CPU model is one sample.** The EPYC 7763 and both
+  Apple M4 Pro rows are medians of more than one run; the others are not. The Intel rows are single runs, so their third
   digit is not meaningful; the ordering between CPU families is much larger
   than the spread within the repeated one.
 - **It does not explain the arm64 result, only records it.** These runs cannot

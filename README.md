@@ -52,15 +52,17 @@ The two rows differ in more than the loss function, and the difference cannot be
 MAX_TRAIN_ROWS=4000 EPOCHS=2 make train-baseline train-improved
 ```
 
-**Quantization and inference latency.** Batch size 1, CPU, 100 timed inputs per variant, macro F1 over 1,000 holdout rows, on this arm64 host at ONNX Runtime's default thread count.
+**Quantization and inference latency.** Batch size 1, CPU, 100 timed inputs per variant, macro F1 over 1,000 holdout rows, on this arm64 host at ONNX Runtime's default thread count. Two runs of the identical command, because one run of a percentile is not a measurement.
 
-| Variant | P50 | P95 | P99 | Macro F1 | Model size |
-|---|---|---|---|---|---|
-| PyTorch FP32 | 30.7 ms | 37.1 ms | 43.5 ms | 0.258 | n/a |
-| ONNX FP32 | 26.2 ms | 32.3 ms | 39.1 ms | 0.258 | 504 MB |
-| ONNX INT8 dynamic | 27.2 ms | 33.2 ms | 40.4 ms | 0.255 | 127 MB |
+| Variant | P50 (run 1 / run 2) | P95 (run 1 / run 2) | Macro F1 | Model size |
+|---|---|---|---|---|
+| PyTorch FP32 | 30.7 / 32.8 ms | 37.1 / 38.4 ms | 0.258 | n/a |
+| ONNX FP32 | 26.2 / 31.2 ms | 32.3 / 43.8 ms | 0.258 | 504 MB |
+| ONNX INT8 dynamic | 27.2 / 28.5 ms | 33.2 / 38.7 ms | 0.255 | 127 MB |
 
-INT8 shrinks the model 3.96x and costs 1.3% of macro F1, and it is **3% slower than ONNX FP32** at P95 here. That is a real measurement, and on its own it is a misleading one, because whether dynamic INT8 is faster is a property of the CPU rather than of the model.
+INT8 shrinks the model 3.96x and costs 1.3% of macro F1. Its latency effect on this host is **not measurable at this sample size**: INT8 comes out at 0.96x of ONNX FP32 at P50 in the first run and 1.10x in the second, so the sign of the effect flips between two runs of the same command on the same machine. Macro F1 is identical to four decimals across both runs, so the accuracy cost of quantization is a real number and the latency difference here is not one. Both reports are committed as `inference_bench_run1.json` and `inference_bench.json`.
+
+Separating the two needs a benchmark that pins the thread count and takes medians over repeats, and it needs more than one CPU, because whether dynamic INT8 is faster is a property of the instruction set rather than of the model.
 
 ```
 make export-onnx && make quantize && make bench-inference
@@ -79,7 +81,7 @@ make export-onnx && make quantize && make bench-inference
 
 INT8 is faster on every x86-64 part measured, **including the AMD ones that have neither AVX-512 nor VNNI**, so VNNI is not what makes dynamic INT8 worth doing. It roughly doubles a win that AVX2 already delivers, and AMX-INT8 doubles it again. The speedup tracks the CPU's integer dot-product support in order: 1.4x, 2.1x, 2.8x. On this arm64 host it is 1.03x to 1.09x at P50, a spread no wider than the noise between two runs of the same configuration, and that is despite the CPU reporting both DotProd and I8MM. Whether the AArch64 kernels ONNX Runtime ships or the `arm64` quantization preset is responsible is not something these measurements separate.
 
-The arm64 result is itself thread-dependent: pinned to 4 threads INT8 is at parity, while at ONNX Runtime's default of all 14 cores it is the 3% slower in the table above. Neither reading turns it into a win.
+That holds at both thread counts measured: pinned to 4 threads INT8 sits at 1.03x to 1.09x, and at ONNX Runtime's default of all 14 cores it is indistinguishable from FP32. Neither reading turns it into a win.
 
 Read the ratio within a row, not down a column. A dedicated laptop performance core and a share of a virtualised server are not comparable in absolute latency, which is why the M4 Pro's FP32 P50 is a quarter of the fastest Xeon's.
 

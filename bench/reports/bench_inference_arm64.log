@@ -1,3 +1,5 @@
+timing 100 single inputs per variant on CPU
+scoring 1000 holdout rows per variant
 {
   "scope": {
     "latency_samples_per_variant": 100,
@@ -50,3 +52,4 @@
   "p95_speedup_int8_vs_torch_fp32": 0.99,
   "p95_speedup_int8_vs_onnx_fp32": 1.13
 }
+wrote /private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/bench/reports/inference_bench.json
