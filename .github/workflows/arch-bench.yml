@@ -6,14 +6,14 @@
 # CPU. Running the same probe on GitHub Actions produces the other half of the
 # comparison from a public run rather than from a claim.
 #
-# The matrix is not four copies of one measurement. `ubuntu-latest` is a pool
-# of different machines, and the CPU a job lands on is not chosen by the job:
-# some allocations are Intel parts carrying AVX-512 VNNI, others are AMD Zen 3
-# parts with neither AVX-512 nor VNNI. Four parallel jobs sample that pool, and
-# each records the CPU model and flags it actually got, so a report is never
-# separable from the instruction set that produced it. Reports are named after
-# the CPU's INT8 capability, so two jobs that land on different hardware cannot
-# be mistaken for one measurement.
+# The matrix is not several copies of one measurement. A GitHub-hosted label is
+# a pool of different machines, and the CPU a job lands on is not chosen by the
+# job: some allocations are Intel parts carrying AVX-512 VNNI, others are AMD
+# Zen parts with neither AVX-512 nor VNNI. The matrix samples that pool across
+# three images, and each job records the CPU model and flags it actually got,
+# so a report is never separable from the instruction set that produced it.
+# Reports are named after the CPU's INT8 capability, so two jobs that land on
+# different hardware cannot be mistaken for one measurement.
 name: arch-bench
 
 on:
@@ -30,12 +30,13 @@ on:
 
 jobs:
   x86-int8:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.image }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        probe: [1, 2, 3, 4]
+        image: [ubuntu-latest, ubuntu-22.04, ubuntu-24.04]
+        probe: [1, 2]
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +48,9 @@ jobs:
       - name: Record the CPU this job landed on
         run: |
           mkdir -p bench/reports
+          # Reports committed to the repository are other machines' runs; drop
+          # them so the uploaded artifact holds only what this job measured.
+          rm -f bench/reports/arch_latency_*.json
           lscpu | tee bench/reports/ci_runner_cpu.txt
           echo
           grep -m1 '^flags' /proc/cpuinfo | tr ' ' '\n' \
@@ -73,7 +77,7 @@ jobs:
       - name: Summarise
         run: |
           {
-            echo "### x86-64 INT8 against FP32 (probe ${{ matrix.probe }})"
+            echo "### x86-64 INT8 against FP32 (${{ matrix.image }} probe ${{ matrix.probe }})"
             echo
             echo '```json'
             cat bench/reports/arch_latency_*_untrained.json
@@ -82,7 +86,7 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: arch-latency-probe-${{ matrix.probe }}
+          name: arch-latency-${{ matrix.image }}-${{ matrix.probe }}
           path: |
             bench/reports/arch_latency_*_untrained.json
             bench/reports/arch_bench_ci.log
