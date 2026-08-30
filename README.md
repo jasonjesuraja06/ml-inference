@@ -76,11 +76,7 @@ make export-onnx && make quantize && make bench-inference
 scripts/run_load_test.sh 50 60s optimized && PORT=8001 scripts/run_load_test.sh 50 60s baseline
 ```
 
-**CodeXGLUE Devign**, binary vulnerable/benign, 2,000 of 21,854 training rows, 1 epoch, 1,000 test rows: accuracy 0.533, binary F1 0.516. Well short of the roughly 0.62 to 0.65 that published full fine-tunes reach, which is what one epoch on 9% of the data buys.
-
-```
-MAX_TRAIN_ROWS=2000 MAX_EVAL_ROWS=1000 EPOCHS=1 make train-devign
-```
+**CodeXGLUE Devign** (`MAX_TRAIN_ROWS=2000 MAX_EVAL_ROWS=1000 EPOCHS=1 make train-devign`). Binary vulnerable/benign, 2,000 of 21,854 training rows, 1 epoch, 1,000 test rows: accuracy 0.533, binary F1 0.516. Well short of the roughly 0.62 to 0.65 published full fine-tunes reach, which is what one epoch on 9% of the data buys.
 
 **Active learning** (`make active-learn`). Over the 1,368-row pool the improved model cleared the 0.92 auto-label threshold on 0 rows: 58 went to review, 1,310 to the uncertain queue. At this training scope the loop saves no labeling effort at all. The routing works; it is worth something only once the model is confident enough to auto-label, which this run is not.
 
@@ -114,9 +110,7 @@ Any training or benchmark run can be scoped down with `MODEL_NAME`, `EPOCHS`, `B
 - DiverseVul attaches a fixing commit's CWE to both the vulnerable and the patched function, so `build_splits.py` keeps only `target == 1` rows, leaving 16,101 of 330,492. Those still carry the attribution noise of the original mining, and the quarter of rows citing several CWEs keep only the first.
 - Only the top-10 CWEs are distinct classes. `__OTHER__` absorbs the long tail and is the largest class in the split.
 - Latency is single-host, batch size 1, warm process, no network. The load test runs one uvicorn worker on the same machine as the client, and the per-process LRU cache means `/stats` reports one worker's view.
-- No authentication, rate limiting, or drift monitoring on any endpoint.
-
-`docs/limitations.md` has the full list.
+- No authentication, rate limiting, or drift monitoring on any endpoint. Full list in `docs/limitations.md`.
 
 ## License
 
