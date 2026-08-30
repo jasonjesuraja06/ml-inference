@@ -42,13 +42,17 @@ def hhmm(seconds: float | None) -> str:
     return f"{m}m {s:02d}s"
 
 
-def cwe_table(baseline: dict | None, improved: dict | None) -> str:
+def cwe_table(majority: dict | None, baseline: dict | None, improved: dict | None) -> str:
     lines = [
         "| Config | Train rows | Epochs | Macro F1 | Weighted F1 | Accuracy | Macro recall | Train wall clock |",
         "|---|---|---|---|---|---|---|---|",
     ]
-    for label, m in (("codebert-base, plain cross-entropy", baseline),
-                     ("unixcoder-base, focal + class weights + augmentation", improved)):
+    rows = (
+        ("majority class, no training", majority),
+        ("codebert-base, plain cross-entropy", baseline),
+        ("unixcoder-base, focal + class weights + augmentation", improved),
+    )
+    for label, m in rows:
         if m is None:
             lines.append(f"| `{label}` | not run | | | | | | |")
             continue
@@ -61,23 +65,27 @@ def cwe_table(baseline: dict | None, improved: dict | None) -> str:
     return "\n".join(lines)
 
 
-def per_class_table(baseline: dict | None, improved: dict | None) -> str:
-    if improved is None and baseline is None:
+def per_class_table(majority: dict | None, baseline: dict | None, improved: dict | None) -> str:
+    ref = improved or baseline or majority
+    if ref is None:
         return "_no run found_"
-    ref = improved or baseline
     names = [k for k in ref["per_class"] if k not in AGGREGATE_ROWS]
     names.sort(key=lambda n: -ref["per_class"][n]["support"])
     lines = [
-        "| Class | Holdout support | Baseline F1 | Improved F1 |",
-        "|---|---|---|---|",
+        "| Class | Holdout support | Majority-class F1 | Baseline F1 | Improved F1 |",
+        "|---|---|---|---|---|",
     ]
     for n in names:
+        j = f"{majority['per_class'][n]['f1-score']:.4f}" if majority and n in majority["per_class"] else "n/a"
         b = f"{baseline['per_class'][n]['f1-score']:.4f}" if baseline and n in baseline["per_class"] else "n/a"
         i = f"{improved['per_class'][n]['f1-score']:.4f}" if improved and n in improved["per_class"] else "n/a"
-        lines.append(f"| {n} | {int(ref['per_class'][n]['support'])} | {b} | {i} |")
+        lines.append(f"| {n} | {int(ref['per_class'][n]['support'])} | {j} | {b} | {i} |")
+    j = f"{majority['f1_macro']:.4f}" if majority else "n/a"
     b = f"{baseline['f1_macro']:.4f}" if baseline else "n/a"
     i = f"{improved['f1_macro']:.4f}" if improved else "n/a"
-    lines.append(f"| **macro average** | {int(ref['per_class']['macro avg']['support'])} | {b} | {i} |")
+    lines.append(
+        f"| **macro average** | {int(ref['per_class']['macro avg']['support'])} | {j} | {b} | {i} |"
+    )
     return "\n".join(lines)
 
 
@@ -107,6 +115,7 @@ def main() -> None:
     args = ap.parse_args()
     rd = pathlib.Path(args.results_dir)
 
+    majority = load(rd, "majority_baseline")
     baseline = load(rd, "cwe_baseline")
     improved = load(rd, "cwe_improved")
     devign = load(rd, "devign_codebert")
@@ -114,11 +123,11 @@ def main() -> None:
 
     print("## Task A: top-10 CWE multiclass on DiverseVul (11 classes with __OTHER__)")
     print()
-    print(cwe_table(baseline, improved))
+    print(cwe_table(majority, baseline, improved))
     print()
     print("### Per-class F1 on the holdout")
     print()
-    print(per_class_table(baseline, improved))
+    print(per_class_table(majority, baseline, improved))
     print()
     print("## Task B: binary vulnerable/benign on CodeXGLUE Defect Detection (Devign)")
     print()

@@ -7,13 +7,15 @@ export PYTHONPATH := src:.
 .PHONY: help install download splits \
 	train-baseline train-improved train-devign \
 	export-onnx quantize bench-inference bench-api \
-	serve serve-baseline active-learn test lint clean
+	serve serve-baseline active-learn cwe-support majority-baseline results test lint clean
 
 help:
 	@echo "Targets, in the order a full reproduction runs them:"
 	@echo "  install          - create .venv and install dependencies with uv"
 	@echo "  download         - fetch DiverseVul + CodeXGLUE Defect Detection from the HF Hub"
 	@echo "  splits           - build train/val/test/holdout/pool parquets (top-10 CWE)"
+	@echo "  cwe-support      - CWE frequency table behind the top-10 cut"
+	@echo "  majority-baseline- constant predictor on the holdout, the floor for macro F1"
 	@echo "  train-baseline   - CodeBERT, plain cross-entropy, no imbalance handling"
 	@echo "  train-improved   - UniXcoder, class-weighted focal loss, augmentation, early stopping"
 	@echo "  train-devign     - CodeBERT on CodeXGLUE Defect Detection (binary)"
@@ -24,6 +26,7 @@ help:
 	@echo "  serve-baseline   - FastAPI on :8001 with FP32, no cache, no batching"
 	@echo "  bench-api        - locust load test against a running service"
 	@echo "  active-learn     - one active-learning iteration over the unlabeled pool"
+	@echo "  results          - render results/ next to the published numbers, as markdown"
 	@echo "  test             - pytest"
 	@echo "  lint             - ruff"
 	@echo "  clean            - remove venv, models, and reports"
@@ -39,6 +42,12 @@ download:
 
 splits:
 	$(PYV) scripts/build_splits.py
+
+cwe-support:
+	$(PYV) scripts/cwe_support.py
+
+majority-baseline:
+	$(PYV) scripts/majority_baseline.py
 
 train-baseline:
 	$(PYV) -m ml_inference.train_baseline
@@ -74,6 +83,9 @@ bench-api:
 
 active-learn:
 	$(PYV) -m ml_inference.active_learning_loop
+
+results:
+	$(PYV) scripts/results_table.py
 
 test:
 	$(VENV)/bin/pytest -q

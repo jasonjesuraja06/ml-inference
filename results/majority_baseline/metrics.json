@@ -1,0 +1,248 @@
+{
+  "accuracy": 0.3763975155279503,
+  "precision_macro": 0.03421795595708639,
+  "recall_macro": 0.09090909090909091,
+  "f1_macro": 0.049721037085658025,
+  "f1_weighted": 0.20586362311366235,
+  "per_class": {
+    "CWE-125": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 249.0
+    },
+    "CWE-119": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 222.0
+    },
+    "CWE-787": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 202.0
+    },
+    "CWE-20": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 203.0
+    },
+    "CWE-416": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 132.0
+    },
+    "CWE-476": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 118.0
+    },
+    "CWE-703": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 109.0
+    },
+    "CWE-200": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 113.0
+    },
+    "CWE-190": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 94.0
+    },
+    "CWE-399": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1-score": 0.0,
+      "support": 64.0
+    },
+    "__OTHER__": {
+      "precision": 0.3763975155279503,
+      "recall": 1.0,
+      "f1-score": 0.5469314079422383,
+      "support": 909.0
+    },
+    "macro avg": {
+      "precision": 0.03421795595708639,
+      "recall": 0.09090909090909091,
+      "f1-score": 0.049721037085658025,
+      "support": 2415.0
+    },
+    "weighted avg": {
+      "precision": 0.1416750896956136,
+      "recall": 0.3763975155279503,
+      "f1-score": 0.20586362311366235,
+      "support": 2415.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      249
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      222
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      202
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      203
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      132
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      118
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      109
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      113
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      94
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      64
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      909
+    ]
+  ],
+  "scope": {
+    "config_name": "majority-class",
+    "model_name": "none, constant predictor",
+    "predicted_class": "__OTHER__",
+    "epochs": 0,
+    "batch_size": 0,
+    "grad_accum_steps": 0,
+    "learning_rate": 0.0,
+    "max_seq_len": 256,
+    "train_rows": 9854,
+    "eval_rows": 2415,
+    "device": "none",
+    "host": "any",
+    "seed": 1729
+  },
+  "train_wall_clock_seconds": 0.0
+}

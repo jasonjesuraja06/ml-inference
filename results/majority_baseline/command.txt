@@ -1,0 +1,1 @@
+PYTHONPATH=src:. python scripts/majority_baseline.py
