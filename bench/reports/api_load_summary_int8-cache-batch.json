@@ -3,28 +3,28 @@
     "config": "int8-cache-batch",
     "users": 50,
     "cache_repeat_rate_requested": 0.3,
-    "cache_repeat_rate_realised": 0.2838,
+    "cache_repeat_rate_realised": 0.2857,
     "load_seed": 1729,
-    "duration_seconds": 59.7,
+    "duration_seconds": 59.8,
     "host": "http://127.0.0.1:8000",
     "model_variant": "quantized",
     "cache_enabled": true,
     "batching_enabled": true
   },
-  "total_requests": 5118,
+  "total_requests": 6403,
   "failures": 0,
-  "rps": 85.72,
+  "rps": 107.14,
   "all_endpoints": {
-    "p50_ms": 160,
-    "p95_ms": 870,
-    "p99_ms": 1100
+    "p50_ms": 67,
+    "p95_ms": 590,
+    "p99_ms": 780
   },
   "predict_endpoint": {
-    "requests": 4690,
+    "requests": 5820,
     "failures": 0,
-    "p50_ms": 170,
-    "p95_ms": 880,
-    "p99_ms": 1100,
-    "rps": 78.55
+    "p50_ms": 71,
+    "p95_ms": 600,
+    "p99_ms": 790,
+    "rps": 97.39
   }
 }

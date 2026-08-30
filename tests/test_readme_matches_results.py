@@ -149,3 +149,48 @@ def test_published_leaderboard_rows_match_the_transcribed_source(readme_rows):
         assert accuracy == pytest.approx(expected[model], abs=5e-5), (
             f"{model}: README says {accuracy}, published_baselines.json says {expected[model]}"
         )
+
+
+SERVING_ROWS = {
+    "FP32, no cache, no batching": ("fp32-plain", None),
+    "INT8, no cache, no batching": ("int8-plain", None),
+    "INT8 + cache": ("int8-cache", "int8-cache"),
+    "INT8 + micro-batching": ("int8-batch", None),
+    "INT8 + cache + micro-batching": ("int8-cache-batch", "int8-cache-batch"),
+}
+REPORTS = REPO / "bench" / "reports"
+
+
+def _serving_report(key):
+    path = REPORTS / f"api_load_summary_{key}.json"
+    if not path.exists():
+        pytest.skip(f"{path.name} missing; run scripts/run_load_test.sh")
+    return json.loads(path.read_text())
+
+
+@pytest.mark.parametrize("label", sorted(SERVING_ROWS))
+def test_serving_table_matches_load_reports(label):
+    """Each serving row equals the load report it came from.
+
+    The serving table is written by hand rather than by scripts/results_table.py,
+    so without this it can drift from bench/reports while the other tables stay
+    correct. That happened once: the table survived a re-measurement on an idle
+    host and understated throughput by up to 20 percent.
+    """
+    key, stats_key = SERVING_ROWS[label]
+    report = _serving_report(key)
+    endpoints = report["all_endpoints"]
+    row = None
+    for line in README.read_text().splitlines():
+        if line.startswith(f"| {label} |"):
+            row = [cell.strip() for cell in line.strip("|").split("|")]
+            break
+    assert row is not None, f"no serving row for {label!r} in README.md"
+    assert row[1] == f"{report['rps']:.1f}", f"{label}: rps"
+    for index, field in ((2, "p50_ms"), (3, "p95_ms"), (4, "p99_ms")):
+        assert row[index] == f"{endpoints[field]} ms", f"{label}: {field}"
+    if stats_key is None:
+        assert row[5] == "n/a", f"{label}: cache hit rate should be n/a"
+    else:
+        stats = json.loads((REPORTS / f"api_stats_{stats_key}.json").read_text())
+        assert row[5] == f"{stats['cache']['hit_rate'] * 100:.1f}%", f"{label}: hit rate"

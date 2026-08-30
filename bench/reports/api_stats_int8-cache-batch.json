@@ -1,1 +1,1 @@
-{"model_variant":"quantized","max_seq_len":256,"cache":{"enabled":true,"capacity":8192,"hits":2867,"misses":1827,"hit_rate":0.6107797187899446},"batching":{"enabled":true,"window_ms":8.0,"max_batch":16,"batches_run":274,"requests_batched":1827,"mean_batch_size":6.67}}
+{"model_variant":"quantized","max_seq_len":256,"cache":{"enabled":true,"capacity":8192,"hits":3834,"misses":1987,"hit_rate":0.6586497165435492},"batching":{"enabled":true,"window_ms":8.0,"max_batch":16,"batches_run":478,"requests_batched":1987,"mean_batch_size":4.16}}
