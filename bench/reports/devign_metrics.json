@@ -1,0 +1,57 @@
+{
+  "accuracy": 0.533,
+  "precision_binary": 0.51875,
+  "recall_binary": 0.51340206185567,
+  "f1_binary": 0.5160621761658031,
+  "f1_macro": 0.532427223348602,
+  "f1_weighted": 0.532918174764086,
+  "per_class": {
+    "benign": {
+      "precision": 0.5461538461538461,
+      "recall": 0.5514563106796116,
+      "f1-score": 0.548792270531401,
+      "support": 515.0
+    },
+    "vulnerable": {
+      "precision": 0.51875,
+      "recall": 0.51340206185567,
+      "f1-score": 0.5160621761658031,
+      "support": 485.0
+    },
+    "macro avg": {
+      "precision": 0.5324519230769231,
+      "recall": 0.5324291862676409,
+      "f1-score": 0.532427223348602,
+      "support": 1000.0
+    },
+    "weighted avg": {
+      "precision": 0.5328629807692307,
+      "recall": 0.533,
+      "f1-score": 0.532918174764086,
+      "support": 1000.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      284,
+      231
+    ],
+    [
+      236,
+      249
+    ]
+  ],
+  "benchmark": "CodeXGLUE Defect Detection (Devign)",
+  "scope": {
+    "model_name": "microsoft/codebert-base",
+    "epochs": 1,
+    "batch_size": 16,
+    "max_seq_len": 256,
+    "train_rows": 2000,
+    "test_rows": 1000,
+    "full_train_rows_available": 21854,
+    "device": "mps",
+    "seed": 1729
+  },
+  "train_wall_clock_seconds": 99.8
+}

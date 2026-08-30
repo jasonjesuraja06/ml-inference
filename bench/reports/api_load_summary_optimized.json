@@ -1,0 +1,27 @@
+{
+  "scope": {
+    "users": 50,
+    "cache_repeat_rate": 0.3,
+    "duration_seconds": 59.8,
+    "host": "http://127.0.0.1:8000",
+    "model_variant": "quantized",
+    "cache_enabled": true,
+    "batching_enabled": true
+  },
+  "total_requests": 6477,
+  "failures": 0,
+  "rps": 108.39,
+  "all_endpoints": {
+    "p50_ms": 70,
+    "p95_ms": 550,
+    "p99_ms": 730
+  },
+  "predict_endpoint": {
+    "requests": 5858,
+    "failures": 0,
+    "p50_ms": 75,
+    "p95_ms": 570,
+    "p99_ms": 740,
+    "rps": 98.03
+  }
+}

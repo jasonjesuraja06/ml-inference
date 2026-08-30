@@ -176,9 +176,10 @@ def test_scoped_config_reads_environment(monkeypatch):
 
 def test_first_cwe_normalisation():
     """The CWE field is an array; benign rows carry an empty one and must be dropped."""
+    import pathlib
     import sys
 
-    sys.path.insert(0, "scripts")
+    sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "scripts"))
     from build_splits import _first_cwe
 
     assert _first_cwe(np.array(["CWE-125", "CWE-787"])) == "CWE-125"
@@ -202,6 +203,16 @@ def test_auto_labeled_round_trip(tmp_path, monkeypatch):
     loaded = data_mod.load_auto_labeled()
     assert list(loaded.columns) == ["code", "label"]
     assert len(loaded) == 2
+
+
+def test_predict_request_accepts_a_long_real_function():
+    """Real DiverseVul functions run past 200k characters; the cap must clear them."""
+    from api.schemas import MAX_CODE_CHARS, PredictRequest
+
+    assert MAX_CODE_CHARS > 226_800
+    PredictRequest(code="int x;\n" * 30_000)
+    with pytest.raises(__import__("pydantic").ValidationError):
+        PredictRequest(code="x" * (MAX_CODE_CHARS + 1))
 
 
 def test_predict_request_rejects_empty_code():

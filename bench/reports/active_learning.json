@@ -1,0 +1,12 @@
+{
+  "pool_size": 1368,
+  "auto_labeled": 0,
+  "human_review_queue": 58,
+  "uncertain_queue": 1310,
+  "auto_labeled_fraction": 0.0,
+  "needs_human_fraction": 1.0,
+  "auto_label_accuracy_vs_truth": null,
+  "auto_label_threshold": 0.92,
+  "low_conf_threshold": 0.45,
+  "model": "/private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/ml2/models/improved/final"
+}

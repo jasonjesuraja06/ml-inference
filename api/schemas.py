@@ -3,9 +3,16 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+# A request-size guard, not a modeling constraint: the tokenizer truncates to
+# MAX_SEQ_LEN tokens regardless. The previous 20,000-character cap rejected
+# 2.4 percent of real DiverseVul functions with a 422, which showed up as a
+# 2.3 percent failure rate under load. Longest function in the holdout split
+# is 226,800 characters.
+MAX_CODE_CHARS = 262_144
+
 
 class PredictRequest(BaseModel):
-    code: str = Field(..., min_length=1, max_length=20_000)
+    code: str = Field(..., min_length=1, max_length=MAX_CODE_CHARS)
     return_probs: bool = False
 
 

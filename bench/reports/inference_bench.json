@@ -1,0 +1,52 @@
+{
+  "scope": {
+    "latency_samples_per_variant": 100,
+    "accuracy_rows": 1000,
+    "holdout_rows_total": 2415,
+    "max_seq_len": 256,
+    "batch_size": 1,
+    "execution_provider": "CPUExecutionProvider",
+    "host_machine": "arm64",
+    "torch_threads": 10
+  },
+  "quantization": {
+    "quant_preset": "arm64",
+    "host_machine": "arm64",
+    "fp32_bytes": 503979814,
+    "int8_bytes": 127179866,
+    "size_ratio": 3.96
+  },
+  "torch_fp32": {
+    "f1_macro": 0.258,
+    "latency_mean_ms": 31.83,
+    "latency_p50_ms": 30.66,
+    "latency_p95_ms": 37.05,
+    "latency_p99_ms": 43.54,
+    "latency_min_ms": 30.03,
+    "latency_max_ms": 72.9,
+    "latency_n": 100
+  },
+  "onnx_fp32": {
+    "f1_macro": 0.258,
+    "latency_mean_ms": 27.24,
+    "latency_p50_ms": 26.15,
+    "latency_p95_ms": 32.26,
+    "latency_p99_ms": 39.08,
+    "latency_min_ms": 24.62,
+    "latency_max_ms": 66.29,
+    "latency_n": 100
+  },
+  "onnx_int8": {
+    "f1_macro": 0.2546,
+    "latency_mean_ms": 28.24,
+    "latency_p50_ms": 27.23,
+    "latency_p95_ms": 33.17,
+    "latency_p99_ms": 40.39,
+    "latency_min_ms": 26.46,
+    "latency_max_ms": 69.22,
+    "latency_n": 100
+  },
+  "f1_macro_drop_pct_int8_vs_torch_fp32": 1.32,
+  "p95_speedup_int8_vs_torch_fp32": 1.12,
+  "p95_speedup_int8_vs_onnx_fp32": 0.97
+}

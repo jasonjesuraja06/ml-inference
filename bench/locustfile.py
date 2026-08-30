@@ -82,11 +82,11 @@ def _on_quit(environment, **kwargs):
     predict = environment.stats.get("POST /predict", "POST")
     out = {
         "scope": {
-            "users": environment.runner.user_count if environment.runner else None,
+            "users": getattr(environment.parsed_options, "num_users", None),
             "cache_repeat_rate": CACHE_REPEAT_RATE,
             "duration_seconds": round(s.last_request_timestamp - s.start_time, 1)
             if s.last_request_timestamp else None,
-            "host": environment.host,
+            "host": getattr(environment.parsed_options, "host", None) or InferenceUser.host,
             "model_variant": os.environ.get("MODEL_VARIANT", "quantized"),
             "cache_enabled": os.environ.get("NO_CACHE") != "1",
             "batching_enabled": os.environ.get("NO_BATCHING") != "1",
@@ -109,5 +109,10 @@ def _on_quit(environment, **kwargs):
         },
     }
     import json
-    (reports_dir / "api_load_summary.json").write_text(json.dumps(out, indent=2))
+    # Name the report after the service configuration so a baseline run cannot
+    # overwrite the optimized run's numbers.
+    variant = "baseline" if os.environ.get("NO_CACHE") == "1" else "optimized"
+    dest = reports_dir / f"api_load_summary_{variant}.json"
+    dest.write_text(json.dumps(out, indent=2))
     print(json.dumps(out, indent=2))
+    print(f"wrote {dest}")
