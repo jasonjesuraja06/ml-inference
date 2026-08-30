@@ -30,3 +30,6 @@ bench/reports/*.csv
 .DS_Store
 .idea/
 .vscode/
+
+# Scratch training logs; the ones worth keeping are copied into results/<run>/stdout.log
+runlogs/
