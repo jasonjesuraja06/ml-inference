@@ -1,5 +1,7 @@
 # ml-inference
 
+[![CI](https://github.com/jasonjesuraja06/ml-inference/actions/workflows/ci.yml/badge.svg)](https://github.com/jasonjesuraja06/ml-inference/actions/workflows/ci.yml)
+
 Classifies a C/C++ function by CWE class, then serves the model over HTTP with ONNX Runtime, an LRU cache, and dynamic micro-batching.
 
 ## Why
@@ -28,7 +30,7 @@ DiverseVul --> build_splits.py --> train / val / test / holdout / pool
 CodeXGLUE Devign --> train_devign.py   independent binary benchmark
 ```
 
-`docs/architecture.md` covers the components; `docs/limitations.md` is the honest scope.
+`docs/architecture.md` covers the components.
 
 ## Measured results
 
@@ -112,7 +114,9 @@ Any training or benchmark run can be scoped down with `MODEL_NAME`, `EPOCHS`, `B
 - DiverseVul attaches a fixing commit's CWE to both the vulnerable and the patched function, so `build_splits.py` keeps only `target == 1` rows, leaving 16,101 of 330,492. Those still carry the attribution noise of the original mining, and the quarter of rows citing several CWEs keep only the first.
 - Only the top-10 CWEs are distinct classes. `__OTHER__` absorbs the long tail and is the largest class in the split.
 - Latency is single-host, batch size 1, warm process, no network. The load test runs one uvicorn worker on the same machine as the client, and the per-process LRU cache means `/stats` reports one worker's view.
-- No authentication, rate limiting, or drift monitoring on any endpoint. `docs/limitations.md` has the full list.
+- No authentication, rate limiting, or drift monitoring on any endpoint.
+
+`docs/limitations.md` has the full list.
 
 ## License
 
