@@ -1,0 +1,5 @@
+rows = true class, columns = predicted class
+
+             benign vulnera
+benign         1188     289
+vulnerable      713     542

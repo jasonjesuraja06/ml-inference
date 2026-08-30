@@ -3,12 +3,19 @@
 ## What the measured numbers do and do not cover
 
 Every number in the README comes from a run on one machine, an Apple M4 Pro
-with 14 cores and 48 GB of RAM running macOS on arm64. Each was produced at a
-reduced scope chosen to fit a fixed time budget, and each report in
-`bench/reports/` carries a `scope` block recording exactly what that run used.
-The reduced scope is the main caveat on the accuracy numbers: they say what
-these configurations reach after a short run on a subset, not what they would
-reach if trained to convergence on the full split.
+with 14 cores and 48 GB of RAM running macOS on arm64. Each training run is
+frozen under `results/<run>/` with its own `scope` block recording exactly what
+it used, alongside the command that produced it.
+
+The models are trained on their whole splits, but on a short schedule: 3
+epochs on DiverseVul and 2 on the CodeXGLUE Devign split, taken from the
+2-to-4 range Devlin et al. recommend rather than searched. There is no
+hyperparameter search anywhere in this repository, and the epoch counts were
+chosen against a wall-clock budget on a host with no CUDA GPU. That is the main
+caveat on the accuracy numbers: they say what these configurations reach on a
+short schedule, not what they would reach if trained to convergence.
+`notebooks/train_gpu.ipynb` is the GPU path for anyone who wants to check that,
+and `docs/benchmarks.md` puts the measured numbers beside the published ones.
 
 Latency percentiles on this host carry more run-to-run variance than the
 effects being measured: two runs of `make bench-inference` disagree on

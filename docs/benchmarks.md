@@ -95,11 +95,16 @@ positive rate. Task A trains only on the 16,101 CWE-labeled vulnerable functions
 which weakness class a function is. No number in that paper sits on the same scale, and any
 table that put them side by side without saying so would be misleading.
 
-One result in that paper is worth reading next to Task A anyway. Table 6 reports CodeBERT
-on DiverseVul binary detection at 37.85% F1 with plain cross-entropy and 41.72% F1 with
-class weights, at a small cost in accuracy (90.48% down to 89.39%). That is the same
-direction of effect the baseline-to-improved comparison in this repository measures, on
-the same source data, published by the dataset's authors.
+One result in that paper is worth reading next to Task A anyway, because it points the
+other way. Table 6 reports CodeBERT on DiverseVul binary detection at 37.85% F1 with plain
+cross-entropy and 41.72% F1 with class weights, at a small cost in accuracy (90.48% down to
+89.39%). Class weighting helps there. On Task A it does not: the reweighted arm lands at
+0.4048 macro F1 against the plain baseline's 0.4093, a tie. The two settings are not the
+same problem. Their binary task is 94% benign, so upweighting the positive class buys
+recall on the only class anyone cares about; Task A is an eleven-way split where the
+reweighting moves error from the rare classes onto `__OTHER__` and the macro average
+absorbs the trade. The accuracy cost points the same way in both: 90.48 to 89.39 there,
+0.5350 to 0.4186 here.
 
 ## Sources
 
@@ -124,3 +129,48 @@ the same source data, published by the dataset's authors.
   Bidirectional Transformers for Language Understanding.** NAACL-HLT 2019.
   [Paper](https://aclanthology.org/N19-1423/). Section A.3 is where the 2-to-4 epoch
   fine-tuning range used here comes from.
+
+## Measured results, in full
+
+Regenerate with `make results`, which reads only `results/` and computes nothing.
+Every row traces to a `results/<run>/metrics.json` written by the training script itself.
+
+## Task A: top-10 CWE multiclass on DiverseVul (11 classes with __OTHER__)
+
+| Config | Train rows | Epochs | Macro F1 | Weighted F1 | Accuracy | Macro recall | Train wall clock |
+|---|---|---|---|---|---|---|---|
+| `majority class, no training` | 9854 | 0 | 0.0497 | 0.2059 | 0.3764 | 0.0909 | 0m 00s |
+| `codebert-base, plain cross-entropy` | 9854 | 3 | 0.4093 | 0.5196 | 0.5350 | 0.3973 | 23m 31s |
+| `unixcoder-base, focal + class weights + augmentation` | 10552 | 3 | 0.4048 | 0.4285 | 0.4186 | 0.4581 | 26m 46s |
+
+### Per-class F1 on the holdout
+
+| Class | Holdout support | Majority-class F1 | Baseline F1 | Improved F1 |
+|---|---|---|---|---|
+| __OTHER__ | 909 | 0.5469 | 0.6833 | 0.4453 |
+| CWE-125 | 249 | 0.0000 | 0.5866 | 0.4969 |
+| CWE-119 | 222 | 0.0000 | 0.4301 | 0.3993 |
+| CWE-20 | 203 | 0.0000 | 0.2965 | 0.3676 |
+| CWE-787 | 202 | 0.0000 | 0.5980 | 0.5471 |
+| CWE-416 | 132 | 0.0000 | 0.4702 | 0.4302 |
+| CWE-476 | 118 | 0.0000 | 0.3043 | 0.3333 |
+| CWE-200 | 113 | 0.0000 | 0.2541 | 0.2762 |
+| CWE-703 | 109 | 0.0000 | 0.2941 | 0.3433 |
+| CWE-190 | 94 | 0.0000 | 0.4967 | 0.5251 |
+| CWE-399 | 64 | 0.0000 | 0.0882 | 0.2888 |
+| **macro average** | 2415 | 0.0497 | 0.4093 | 0.4048 |
+
+## Task B: binary vulnerable/benign on CodeXGLUE Defect Detection (Devign)
+
+| System | Accuracy | Binary F1 | Source |
+|---|---|---|---|
+| BiLSTM | 0.5937 | not reported | CodeXGLUE leaderboard |
+| TextCNN | 0.6069 | not reported | CodeXGLUE leaderboard |
+| RoBERTa | 0.6105 | not reported | CodeXGLUE leaderboard |
+| CodeBERT | 0.6208 | not reported | CodeXGLUE leaderboard |
+| **this repository, codebert-base, 2 epochs, 256 tokens, batch 16** | **0.6332** | **0.5197** | `results/devign_codebert/` |
+
+## Published context
+
+- DiverseVul: A New Vulnerable Source Code Dataset for Deep Learning Based Vulnerability Detection (RAID 2023 (26th International Symposium on Research in Attacks, Intrusions and Defenses)): best model over all 11 architectures F1 47.2; CodeBERT, no class weighting F1 37.85; CodeBERT, class weights on cross-entropy F1 41.72. The DiverseVul paper never runs a multi-class CWE task. It reports binary detection F1 over the whole dataset, where roughly 94 percent of functions are benign. The top-10 CWE task in this repository trains only on the 16101 CWE-labeled vulnerable functions and predicts which weakness class a function is, so no number in that paper sits on the same scale. Included because it is the published result on this dataset and it reports the class-weighting effect this repository also measures.
+- Devign: Effective Vulnerability Identification by Learning Comprehensive Program Semantics via Graph Neural Networks (NeurIPS 2019), Table 2, Combined column: Devign (Composite) accuracy 72.26, F1 73.26. Not the CodeXGLUE split. The Devign paper's Combined column spans four projects with a 75/25 split; CodeXGLUE releases only the FFmpeg+QEMU portion under an 80/10/10 split. Listed as the dataset's origin, not as a like-for-like comparison.
