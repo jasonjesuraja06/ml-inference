@@ -1,0 +1,30 @@
+{
+  "scope": {
+    "config": "int8-cache",
+    "users": 50,
+    "cache_repeat_rate_requested": 0.3,
+    "cache_repeat_rate_realised": 0.2852,
+    "load_seed": 1729,
+    "duration_seconds": 59.7,
+    "host": "http://127.0.0.1:8000",
+    "model_variant": "quantized",
+    "cache_enabled": true,
+    "batching_enabled": false
+  },
+  "total_requests": 5993,
+  "failures": 0,
+  "rps": 100.35,
+  "all_endpoints": {
+    "p50_ms": 130,
+    "p95_ms": 510,
+    "p99_ms": 650
+  },
+  "predict_endpoint": {
+    "requests": 5440,
+    "failures": 0,
+    "p50_ms": 120,
+    "p95_ms": 510,
+    "p99_ms": 650,
+    "rps": 91.09
+  }
+}

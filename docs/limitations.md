@@ -10,10 +10,31 @@ The reduced scope is the main caveat on the accuracy numbers: they say what
 these configurations reach after a short run on a subset, not what they would
 reach if trained to convergence on the full split.
 
-The latency numbers are less scope-sensitive, but they are single-host, batch
-size 1, CPU-only, and measured with a warm process. They do not include network
-time, and they are not a claim about throughput under concurrency; the load
-test covers that separately.
+The latency numbers are less scope-sensitive, but they are batch size 1,
+CPU-only, and measured with a warm process. They do not include network time,
+and they are not a claim about throughput under concurrency; the load test
+covers that separately.
+
+The cross-architecture INT8 table is the one set of numbers not from this host,
+and it carries its own limits:
+
+- **It measures latency, never accuracy.** The CI runs export an untrained
+  classification head, which is sound for timing and worthless for scoring.
+  Nothing in that table says anything about macro F1.
+- **Absolute latency is not comparable across its rows.** A dedicated laptop
+  performance core and a share of a virtualised CI server differ in clock,
+  memory bandwidth, and what else is resident. Only the INT8-against-FP32 ratio
+  within a row is a like-for-like comparison.
+- **One allocation of a CPU model is one sample.** Only the EPYC 7763 row is a
+  median of more than one run. The Intel rows are single runs, so their third
+  digit is not meaningful; the ordering between CPU families is much larger
+  than the spread within the repeated one.
+- **It does not explain the arm64 result, only records it.** These runs cannot
+  separate ONNX Runtime's AArch64 kernels from the `arm64` quantization preset
+  as the reason INT8 is not faster there. Doing that needs a kernel-level
+  profile this repository does not contain.
+- **`ubuntu-latest` is not a fixed machine.** Re-running the workflow will land
+  on a different mix of CPUs and produce a different set of rows.
 
 ## Task limitations
 
@@ -50,6 +71,17 @@ test covers that separately.
 - The LRU cache is per process. Running uvicorn with multiple workers gives
   each worker its own cache, so the hit rate reported by `/stats` is that
   worker's, not the service's.
+- The load-test configurations run sequentially against separate processes on
+  the same machine as the client. Per-user request streams are seeded, so the
+  five configurations see the same sequence of payload decisions, but a slower
+  configuration gets through fewer of them and concurrency means two runs never
+  interleave identically. A difference between two rows carries the run-to-run
+  variance of both, and the attribution between cache and batching is only as
+  stable as that.
+- The cache hit rate is a property of the synthetic repeat rate, which is set
+  to 0.30. It is a knob, not a measurement of how often real scanner traffic
+  repeats a function, and every throughput number that depends on the cache
+  inherits that assumption.
 
 ## Labeling limitations
 

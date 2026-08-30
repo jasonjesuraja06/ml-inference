@@ -1,0 +1,15 @@
+.venv/bin/python -m ml_inference.export_onnx
+`torch_dtype` is deprecated! Use `dtype` instead!
+/private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/.venv/lib/python3.12/site-packages/transformers/modeling_attn_mask_utils.py:196: TracerWarning: torch.tensor results are registered as constants in the trace. You can safely ignore this warning if you use this function to create tensors out of constant variables that would be the same every time you call this function. In any other case, this might cause the trace to be incorrect.
+  inverted_mask = torch.tensor(1.0, dtype=dtype) - expanded_mask
+exporting /private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/models/improved/final -> /private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/models/onnx/improved-fp32 (FP32 ONNX)
+done
+.venv/bin/python -m ml_inference.quantize_onnx
+quantizing /private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/models/onnx/improved-fp32 -> /private/tmp/claude-501/-Users-jason-jesuraja-HeartScreen/fea08555-080d-4ab3-a746-1a45b32d76e5/scratchpad/mlx/models/onnx/improved-int8 (INT8 dynamic, preset=arm64, host=arm64)
+{
+  "quant_preset": "arm64",
+  "host_machine": "arm64",
+  "fp32_bytes": 503979814,
+  "int8_bytes": 127179866,
+  "size_ratio": 3.96
+}

@@ -1,0 +1,1 @@
+{"model_variant":"quantized","max_seq_len":256,"cache":{"enabled":false},"batching":{"enabled":true,"window_ms":8.0,"max_batch":16,"batches_run":132,"requests_batched":1921,"mean_batch_size":14.55}}

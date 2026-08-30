@@ -1,0 +1,1 @@
+{"model_variant":"quantized","max_seq_len":256,"cache":{"enabled":true,"capacity":8192,"hits":3516,"misses":1927,"hit_rate":0.6459672974462612},"batching":{"enabled":false}}

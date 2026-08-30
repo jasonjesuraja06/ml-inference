@@ -1,0 +1,30 @@
+{
+  "scope": {
+    "config": "int8-batch",
+    "users": 50,
+    "cache_repeat_rate_requested": 0.3,
+    "cache_repeat_rate_realised": 0.2666,
+    "load_seed": 1729,
+    "duration_seconds": 59.6,
+    "host": "http://127.0.0.1:8000",
+    "model_variant": "quantized",
+    "cache_enabled": false,
+    "batching_enabled": true
+  },
+  "total_requests": 2117,
+  "failures": 0,
+  "rps": 35.53,
+  "all_endpoints": {
+    "p50_ms": 1100,
+    "p95_ms": 1700,
+    "p99_ms": 1900
+  },
+  "predict_endpoint": {
+    "requests": 1904,
+    "failures": 0,
+    "p50_ms": 1100,
+    "p95_ms": 1700,
+    "p99_ms": 1900,
+    "rps": 31.95
+  }
+}
