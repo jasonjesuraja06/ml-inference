@@ -1,0 +1,54 @@
+{
+  "scope": {
+    "checkpoint": "microsoft/unixcoder-base",
+    "weights": "untrained",
+    "latency_samples_per_variant": 100,
+    "batch_size": 1,
+    "max_seq_len": 256,
+    "padding": "max_length",
+    "intra_op_threads": 4,
+    "execution_provider": "CPUExecutionProvider",
+    "onnxruntime_version": "1.29.0",
+    "python_version": "3.12.14",
+    "quant_preset": "arm64"
+  },
+  "cpu": {
+    "machine": "arm64",
+    "system": "Darwin",
+    "logical_cpus": 14,
+    "model": "Apple M4 Pro",
+    "int8_features": {
+      "FEAT_DotProd": true,
+      "FEAT_I8MM": true,
+      "FEAT_BF16": true
+    }
+  },
+  "model_bytes": {
+    "fp32": 503979814,
+    "int8": 127179866,
+    "size_ratio": 3.96
+  },
+  "onnx_fp32": {
+    "mean_ms": 38.77,
+    "p50_ms": 37.81,
+    "p95_ms": 47.05,
+    "p99_ms": 48.14,
+    "min_ms": 31.78,
+    "max_ms": 54.1,
+    "n": 100
+  },
+  "onnx_int8": {
+    "mean_ms": 36.0,
+    "p50_ms": 36.05,
+    "p95_ms": 37.51,
+    "p99_ms": 37.86,
+    "min_ms": 33.02,
+    "max_ms": 39.38,
+    "n": 100
+  },
+  "int8_speedup_vs_fp32": {
+    "p50": 1.049,
+    "p95": 1.254,
+    "p99": 1.272
+  }
+}
